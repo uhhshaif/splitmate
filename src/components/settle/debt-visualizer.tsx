@@ -32,7 +32,7 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
     balances[mid] = 0;
   });
 
-  const groupExpenses = expenses.filter((e) => e.group_id === groupId && e.category !== 'settlement');
+  const groupExpenses = expenses.filter((e) => e.group_id === groupId);
 
   groupExpenses.forEach((e) => {
     // Add to payer's credit
@@ -172,8 +172,8 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
               setActiveTx(null);
             }}
             onConfirm={handleConfirmSettle}
-            fromName={profiles[activeTx.from]?.display_name || 'Someone'}
-            toName={profiles[activeTx.to]?.display_name || 'Someone'}
+            fromId={activeTx.from}
+            toId={activeTx.to}
             amount={activeTx.amount}
           />
         )}

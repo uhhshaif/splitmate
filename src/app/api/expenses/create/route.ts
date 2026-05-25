@@ -35,7 +35,14 @@ export async function POST(request: Request) {
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const authHeader = request.headers.get('Authorization') || '';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
 
     // 1. Create the expense row
     const { data: newExpense, error: expErr } = await supabase

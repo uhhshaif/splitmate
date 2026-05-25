@@ -11,8 +11,8 @@ interface DuitNowDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
-  fromName: string;
-  toName: string;
+  fromId: string;
+  toId: string;
   amount: number;
 }
 
@@ -23,11 +23,11 @@ const MALAYSIAN_PAYMENT_METHODS = [
   { name: 'Touch \'n Go eWallet', color: 'bg-cyan-600 hover:bg-cyan-700 text-white' },
 ];
 
-export default function DuitNowDialog({ isOpen, onClose, onConfirm, fromName, toName, amount }: DuitNowDialogProps) {
+export default function DuitNowDialog({ isOpen, onClose, onConfirm, fromId, toId, amount }: DuitNowDialogProps) {
   const { profiles } = useStore();
-  const creditorProfile = Object.values(profiles).find(
-    (p) => p.display_name.toLowerCase() === toName.toLowerCase()
-  );
+  const creditorProfile = profiles[toId];
+  const fromName = profiles[fromId]?.display_name || 'Someone';
+  const toName = profiles[toId]?.display_name || 'Someone';
 
   const [selectedMethod, setSelectedMethod] = useState('TNG eWallet');
   const [isSettling, setIsSettling] = useState(false);

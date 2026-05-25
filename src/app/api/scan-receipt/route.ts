@@ -23,19 +23,37 @@ export async function POST(request: Request) {
       let description = 'Le Comptoir Bistro';
       let amount = 68.40;
       let category = 'food';
+      let items = [
+        { name: 'Nasi Kandar', amount: 25.50 },
+        { name: 'Mee Goreng Mamak', amount: 18.00 },
+        { name: 'Roti Canai Special', amount: 14.90 },
+        { name: 'Teh Tarik Kaw', amount: 10.00 }
+      ];
       
       if (lowerName.includes('uber') || lowerName.includes('taxi') || lowerName.includes('cab')) {
         description = 'Uber Ride - Barcelona City';
         amount = 24.50;
         category = 'transport';
+        items = [
+          { name: 'GrabCar Ride Fare', amount: 19.50 },
+          { name: 'Toll Charges', amount: 5.00 }
+        ];
       } else if (lowerName.includes('hotel') || lowerName.includes('hostel') || lowerName.includes('airbnb')) {
         description = 'Hostel Generator Madrid';
         amount = 145.00;
         category = 'lodging';
+        items = [
+          { name: 'Room Stay Rate', amount: 130.00 },
+          { name: 'Tourism Tax', amount: 15.00 }
+        ];
       } else if (lowerName.includes('cinema') || lowerName.includes('show') || lowerName.includes('ticket')) {
         description = 'Sagrada Familia Entry Ticket';
         amount = 30.00;
         category = 'entertainment';
+        items = [
+          { name: 'Standard Seat Ticket x2', amount: 26.00 },
+          { name: 'Caramel Popcorn Combo', amount: 4.00 }
+        ];
       }
 
       return NextResponse.json({
@@ -43,6 +61,7 @@ export async function POST(request: Request) {
         amount,
         category,
         date: new Date().toISOString().split('T')[0],
+        items,
         success: true,
         message: 'Mock scan completed successfully (Mock Mode).'
       });
@@ -62,14 +81,18 @@ export async function POST(request: Request) {
 
     let textContent = '';
     const systemPrompt = `You are a precise receipt scanning assistant.
-Extract the merchant description, the total amount (as a float), the category (must be one of: food, housing, transport, entertainment, utilities, lodging, general), and the receipt date (formatted as YYYY-MM-DD).
+Extract the merchant description, the total amount (as a float), the category (must be one of: food, housing, transport, entertainment, utilities, lodging, general), the receipt date (formatted as YYYY-MM-DD), and the individual line items.
 Return ONLY a valid JSON object. Do not include markdown code block syntax (like \`\`\`json). Just return raw JSON.
 Example format:
 {
   "description": "Starbucks Coffee",
   "amount": 14.50,
   "category": "food",
-  "date": "2026-05-23"
+  "date": "2026-05-23",
+  "items": [
+    { "name": "Caffe Latte", "amount": 6.50 },
+    { "name": "Chocolate Croissant", "amount": 8.00 }
+  ]
 }`;
 
     if (geminiApiKey && !geminiApiKey.startsWith('your_')) {
@@ -166,6 +189,7 @@ Example format:
           amount: parseFloat(parsed.amount) || 0.0,
           category: parsed.category || 'general',
           date: parsed.date || new Date().toISOString().split('T')[0],
+          items: parsed.items || [],
           success: true
         });
       } else {

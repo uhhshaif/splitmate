@@ -147,6 +147,8 @@ export async function POST(request: Request) {
 Your task is to parse a text message describing an expense in a group of Malaysian students and extract:
 1. "title": A concise merchant or expense name (e.g. "Dinner at Mamak", "Grab ride").
 2. "amount": The total amount of the transaction as a floating-point number. Treat Malaysian Ringgit (RM) as the primary currency (e.g. RM45 = 45.00).
+   - If the input text specifies a tax, service charge, or tip to be added (e.g. "plus 3% tax", "there is a 3 percent service tax", "add 10% tip"), calculate the final total amount by adding that percentage to the base amount.
+   - If the total amount is stated as a base and tax is mentioned as included (e.g. "60rm including tax"), the total amount is just that base.
 3. "paid_by": The ID of the member who paid. Look at the group members list and match the name. 
    - Words like "I", "me", "myself" refer to the Current User (ID: ${currentUserId}).
    - If the name is mentioned, find the closest matching member display name.
@@ -154,6 +156,7 @@ Your task is to parse a text message describing an expense in a group of Malaysi
    - If the text specifies who participated (e.g. "me and Reza", "except Jessica"), split only among them.
    - If not specified or says "everyone", "split equally", split among ALL members of the group.
    - Calculate equal division of the total amount. Ensure the sum of splits equals the total amount.
+   - If individual items or meals are specified (e.g., "i paid 32rm for my meal the other guy remaining"), calculate each person's base share. If a tax/service charge/tip percentage is mentioned (e.g. "3% service tax"), apply that percentage to each person's base share. Ensure the sum of all splits equals the final calculated total amount.
 5. "category": Must be one of: "food", "housing", "transport", "entertainment", "utilities", "lodging", "general".
 6. "date": Extract the date if mentioned, otherwise default to today's date (${dateContext || new Date().toISOString().split('T')[0]}).
 
@@ -180,25 +183,54 @@ Example output format:
     let textContent = '';
 
     if (geminiApiKey && !geminiApiKey.startsWith('your_')) {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: systemPrompt },
-                { text: `Parse this phrase: "${text}"` }
-              ]
+      let response;
+      try {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: systemPrompt },
+                  { text: `Parse this phrase: "${text}"` }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json'
             }
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json'
-          }
-        })
-      });
+          })
+        });
+      } catch (err) {
+        console.warn('Gemini flash-latest fetch failed, attempting fallback...', err);
+      }
+
+      // Fallback to gemini-2.5-flash if the primary request failed or returned an error status (like 503)
+      if (!response || !response.ok) {
+        console.warn('Gemini flash-latest unavailable or returned error. Retrying with gemini-2.5-flash...');
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: systemPrompt },
+                  { text: `Parse this phrase: "${text}"` }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
