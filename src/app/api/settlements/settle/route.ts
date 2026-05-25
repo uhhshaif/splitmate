@@ -21,7 +21,14 @@ export async function POST(request: Request) {
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const authHeader = request.headers.get('Authorization') || '';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
 
     // Insert record in settlements table
     const { data: newSettlement, error: setErr } = await supabase

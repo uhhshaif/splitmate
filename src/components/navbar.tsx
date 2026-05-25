@@ -20,9 +20,6 @@ export default function Navbar() {
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Groups', href: '/groups', icon: Users },
-    { name: 'Expenses', href: '/expenses', icon: FileText },
-    { name: 'Trips', href: '/trips', icon: Plane },
-    { name: 'Settle Up', href: '/settle', icon: Coins },
   ];
 
   return (

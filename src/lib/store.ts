@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { isMockMode, supabase } from './supabase';
 import { simplifyDebts, Transaction } from './debt';
 
@@ -50,6 +51,8 @@ export interface Expense {
 export interface ItineraryItem {
   time: string;
   activity: string;
+  location?: string;
+  coords?: [number, number];
 }
 
 export interface Trip {
@@ -73,6 +76,7 @@ interface SplitmateState {
   trips: Trip[];
   isLoading: boolean;
   error: string | null;
+  exchangeRates: Record<string, number>;
 
   // Auth actions
   signInMock: (email: string, displayName: string) => void;
@@ -80,6 +84,7 @@ interface SplitmateState {
   
   // Data actions
   initialize: () => Promise<void>;
+  fetchExchangeRates: () => Promise<void>;
   createGroup: (name: string, description: string, memberEmails: string[]) => Promise<string | null>;
   addExpense: (
     groupId: string,
@@ -109,6 +114,18 @@ interface SplitmateState {
     venmo_handle?: string;
     default_currency?: string;
   }) => Promise<void>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  deleteGroup: (groupId: string) => Promise<void>;
+  inviteMemberToGroup: (groupId: string, email: string) => Promise<void>;
+  updateExpense: (
+    expenseId: string,
+    description: string,
+    amount: number,
+    date: string,
+    paidById: string,
+    category: string,
+    splits: ExpenseSplit[]
+  ) => Promise<void>;
 }
 
 // Pre-populate premium mock data
@@ -289,22 +306,25 @@ const mockTrips: Trip[] = [
     created_by: 'u2',
     created_at: '2026-05-10T10:00:00Z',
     itinerary: [
-      { time: '14:00', activity: 'Arrive at Barcelona Airport, check into AirBnB' },
-      { time: '17:00', activity: 'Walk around Gothic Quarter and have tapas' },
-      { time: '10:00', activity: 'Visit La Sagrada Familia (Gaudi Tour)' },
-      { time: '15:00', activity: 'Relax at Barceloneta Beach' },
+      { time: '14:00', activity: 'Arrive at Barcelona Airport, check into AirBnB', location: 'Josep Tarradellas Barcelona-El Prat Airport', coords: [41.2974, 2.0833] },
+      { time: '17:00', activity: 'Walk around Gothic Quarter and have tapas', location: 'Gothic Quarter, Barcelona', coords: [41.3833, 2.1769] },
+      { time: '10:00', activity: 'Visit La Sagrada Familia (Gaudi Tour)', location: 'La Sagrada Familia', coords: [41.4036, 2.1744] },
+      { time: '15:00', activity: 'Relax at Barceloneta Beach', location: 'Barceloneta Beach', coords: [41.3784, 2.1925] },
     ]
   }
 ];
 
-export const useStore = create<SplitmateState>((set, get) => ({
-  currentUser: null,
-  profiles: {},
-  groups: [],
-  expenses: [],
-  trips: [],
-  isLoading: true,
-  error: null,
+export const useStore = create<SplitmateState>()(
+  persist(
+    (set, get) => ({
+      currentUser: null,
+      profiles: mockProfiles,
+      groups: mockGroups,
+      expenses: mockExpenses,
+      trips: mockTrips,
+      isLoading: true,
+      error: null,
+      exchangeRates: { RM: 1, MYR: 1, USD: 0.23, EUR: 0.21, SGD: 0.31 },
 
   signInMock: (email: string, displayName: string) => {
     const matchedProfile = Object.values(get().profiles).find(p => p.email.toLowerCase() === email.toLowerCase());
@@ -326,67 +346,54 @@ export const useStore = create<SplitmateState>((set, get) => ({
     });
 
     set({ currentUser: user, profiles: newProfiles, groups: updatedGroups });
-    
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('splitmate_user', JSON.stringify(user));
-      localStorage.setItem('splitmate_profiles', JSON.stringify(newProfiles));
-      localStorage.setItem('splitmate_groups', JSON.stringify(updatedGroups));
-    }
   },
 
   signOutUser: async () => {
     if (isMockMode) {
       set({ currentUser: null });
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('splitmate_user');
-      }
     } else {
       await supabase.auth.signOut();
       set({ currentUser: null });
     }
   },
 
+  fetchExchangeRates: async () => {
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/MYR');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.rates) {
+          const rates: Record<string, number> = {
+            RM: 1,
+            MYR: 1,
+            USD: data.rates.USD || 0.23,
+            EUR: data.rates.EUR || 0.21,
+            SGD: data.rates.SGD || 0.31
+          };
+          set({ exchangeRates: rates });
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch live exchange rates, using cached/fallback rates:', err);
+    }
+  },
+
   initialize: async () => {
     set({ isLoading: true, error: null });
     try {
+      await get().fetchExchangeRates();
       if (isMockMode) {
-        // Load local state
-        let localUser = null;
-        let localProfiles = { ...mockProfiles };
-        let localGroups = [...mockGroups];
-        let localExpenses = [...mockExpenses];
-        let localTrips = [...mockTrips];
-
-        if (typeof window !== 'undefined') {
-          const userStr = localStorage.getItem('splitmate_user');
-          const profilesStr = localStorage.getItem('splitmate_profiles');
-          const groupsStr = localStorage.getItem('splitmate_groups');
-          const expensesStr = localStorage.getItem('splitmate_expenses');
-          const tripsStr = localStorage.getItem('splitmate_trips');
-
-          if (userStr) localUser = JSON.parse(userStr);
-          if (profilesStr) localProfiles = JSON.parse(profilesStr);
-          if (groupsStr) localGroups = JSON.parse(groupsStr);
-          if (expensesStr) localExpenses = JSON.parse(expensesStr);
-          if (tripsStr) localTrips = JSON.parse(tripsStr);
-
-          // Seed default user if none logged in
-          if (!localUser) {
-            localUser = mockProfiles['u1'];
-            localStorage.setItem('splitmate_user', JSON.stringify(localUser));
-          }
-        } else {
-          localUser = mockProfiles['u1'];
+        // Hydrated from persist storage, ensure default values are set if store is uninitialized
+        if (!get().currentUser) {
+          set({
+            currentUser: mockProfiles['u1'],
+            profiles: mockProfiles,
+            groups: mockGroups,
+            expenses: mockExpenses,
+            trips: mockTrips,
+          });
         }
-
-        set({
-          currentUser: localUser,
-          profiles: localProfiles,
-          groups: localGroups,
-          expenses: localExpenses,
-          trips: localTrips,
-          isLoading: false
-        });
+        set({ isLoading: false });
       } else {
         // Load Supabase state
         const { data: { session } } = await supabase.auth.getSession();
@@ -546,11 +553,6 @@ export const useStore = create<SplitmateState>((set, get) => ({
         groups: updatedGroups,
         profiles: newProfiles
       });
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('splitmate_groups', JSON.stringify(updatedGroups));
-        localStorage.setItem('splitmate_profiles', JSON.stringify(newProfiles));
-      }
       return groupId;
     } else {
       // Supabase Create Group logic
@@ -621,18 +623,16 @@ export const useStore = create<SplitmateState>((set, get) => ({
 
       const updatedExpenses = [...get().expenses, newExpense];
       set({ expenses: updatedExpenses });
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('splitmate_expenses', JSON.stringify(updatedExpenses));
-      }
       return expenseId;
     } else {
       // Supabase add expense via Next.js REST API
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch('/api/expenses/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
           },
           body: JSON.stringify({
             groupId,
@@ -671,11 +671,12 @@ export const useStore = create<SplitmateState>((set, get) => ({
     if (isMockMode) {
       const updated = get().expenses.filter(e => e.id !== id);
       set({ expenses: updated });
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('splitmate_expenses', JSON.stringify(updated));
-      }
     } else {
-      await supabase.from('expenses').delete().eq('id', id);
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete expense from Supabase:', error);
+        throw new Error(error.message || 'Failed to delete expense');
+      }
       await get().initialize();
     }
   },
@@ -701,10 +702,6 @@ export const useStore = create<SplitmateState>((set, get) => ({
 
       const updatedTrips = [...get().trips, newTrip];
       set({ trips: updatedTrips });
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('splitmate_trips', JSON.stringify(updatedTrips));
-      }
       return tripId;
     } else {
       const { data: newTrip, error } = await supabase
@@ -736,9 +733,6 @@ export const useStore = create<SplitmateState>((set, get) => ({
         return t;
       });
       set({ trips: updatedTrips });
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('splitmate_trips', JSON.stringify(updatedTrips));
-      }
     } else {
       // In supabase, we can store itinerary in a jsonb field in the trips table (since we didn't specify a table for it)
       await supabase.from('trips').update({ itinerary }).eq('id', tripId);
@@ -765,10 +759,12 @@ export const useStore = create<SplitmateState>((set, get) => ({
       );
     } else {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch('/api/settlements/settle', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
           },
           body: JSON.stringify({
             groupId,
@@ -838,11 +834,6 @@ export const useStore = create<SplitmateState>((set, get) => ({
       
       const updatedProfiles = { ...get().profiles, [user.id]: updatedUser };
       set({ currentUser: updatedUser, profiles: updatedProfiles });
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('splitmate_user', JSON.stringify(updatedUser));
-        localStorage.setItem('splitmate_profiles', JSON.stringify(updatedProfiles));
-      }
     } else {
       // Update Supabase Auth metadata and optionally email
       const updateData: any = {
@@ -882,6 +873,198 @@ export const useStore = create<SplitmateState>((set, get) => ({
 
       await get().initialize();
     }
+  },
+
+  leaveGroup: async (groupId: string) => {
+    const user = get().currentUser;
+    if (!user) return;
+
+    if (isMockMode) {
+      const updatedGroups = get().groups.map(group => {
+        if (group.id === groupId) {
+          return {
+            ...group,
+            members: group.members.filter(m => m !== user.id)
+          };
+        }
+        return group;
+      }).filter(group => group.members.length > 0);
+
+      set({ groups: updatedGroups });
+    } else {
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      await get().initialize();
+    }
+  },
+
+  deleteGroup: async (groupId: string) => {
+    const user = get().currentUser;
+    if (!user) return;
+
+    if (isMockMode) {
+      const updatedGroups = get().groups.filter(group => group.id !== groupId);
+      const updatedExpenses = get().expenses.filter(e => e.group_id !== groupId);
+      const updatedTrips = get().trips.filter(t => t.group_id !== groupId);
+
+      set({ 
+        groups: updatedGroups,
+        expenses: updatedExpenses,
+        trips: updatedTrips
+      });
+    } else {
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) throw error;
+      await get().initialize();
+    }
+  },
+
+  inviteMemberToGroup: async (groupId: string, email: string) => {
+    const user = get().currentUser;
+    if (!user) return;
+
+    if (isMockMode) {
+      const newProfiles = { ...get().profiles };
+      let existing = Object.values(newProfiles).find(p => p.email.toLowerCase() === email.toLowerCase());
+      if (!existing) {
+        const seedName = email.split('@')[0];
+        const newId = `u-${Math.random().toString(36).substr(2, 9)}`;
+        existing = {
+          id: newId,
+          email: email.toLowerCase(),
+          display_name: seedName.charAt(0).toUpperCase() + seedName.slice(1),
+          avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seedName)}`
+        };
+        newProfiles[newId] = existing;
+      }
+
+      const updatedGroups = get().groups.map(group => {
+        if (group.id === groupId) {
+          if (!group.members.includes(existing.id)) {
+            return {
+              ...group,
+              members: [...group.members, existing.id]
+            };
+          }
+        }
+        return group;
+      });
+
+      set({ groups: updatedGroups, profiles: newProfiles });
+    } else {
+      // Find by email in users table
+      const { data: found } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+      
+      if (!found) {
+        throw new Error(`User with email "${email}" is not registered on Splitmate.`);
+      }
+
+      // Add to group_members
+      const { error } = await supabase
+        .from('group_members')
+        .insert([{
+          group_id: groupId,
+          user_id: found.id
+        }]);
+      
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error(`User "${email}" is already a member of this group.`);
+        }
+        throw error;
+      }
+      await get().initialize();
+    }
+  },
+
+  updateExpense: async (
+    expenseId: string,
+    description: string,
+    amount: number,
+    date: string,
+    paidById: string,
+    category: string,
+    splits: ExpenseSplit[]
+  ) => {
+    const user = get().currentUser;
+    if (!user) return;
+
+    if (isMockMode) {
+      const updatedExpenses = get().expenses.map(e => {
+        if (e.id === expenseId) {
+          return {
+            ...e,
+            description,
+            amount,
+            date,
+            paid_by_id: paidById,
+            category,
+            splits
+          };
+        }
+        return e;
+      });
+      set({ expenses: updatedExpenses });
+    } else {
+      // 1. Update the expenses table
+      const { error: expError } = await supabase
+        .from('expenses')
+        .update({
+          title: description,
+          amount,
+          date,
+          paid_by: paidById,
+          category
+        })
+        .eq('id', expenseId);
+
+      if (expError) throw expError;
+
+      // 2. Delete existing splits
+      const { error: deleteError } = await supabase
+        .from('expense_splits')
+        .delete()
+        .eq('expense_id', expenseId);
+
+      if (deleteError) throw deleteError;
+
+      // 3. Insert new splits
+      const splitInserts = splits.map(s => ({
+        expense_id: expenseId,
+        user_id: s.profile_id,
+        amount_owed: s.amount
+      }));
+
+      const { error: insertError } = await supabase
+        .from('expense_splits')
+        .insert(splitInserts);
+
+      if (insertError) throw insertError;
+
+      await get().initialize();
+    }
   }
+}), {
+  name: 'splitmate-storage',
+  partialize: (state) => ({
+    currentUser: state.currentUser,
+    profiles: state.profiles,
+    groups: state.groups,
+    expenses: state.expenses,
+    trips: state.trips,
+  }),
 }));
 

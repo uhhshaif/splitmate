@@ -8,6 +8,7 @@ export interface ScannedReceiptResult {
   date: string;
   success: boolean;
   message?: string;
+  items?: { name: string; amount: number }[];
 }
 
 export async function scanReceiptWithAI(base64Image: string, fileName?: string): Promise<ScannedReceiptResult> {
@@ -33,6 +34,7 @@ export async function scanReceiptWithAI(base64Image: string, fileName?: string):
       amount: 0,
       category: 'general',
       date: new Date().toISOString().split('T')[0],
+      items: [],
       success: false,
       message: error.message || 'Unknown error occurred during receipt scan',
     };

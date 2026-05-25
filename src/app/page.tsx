@@ -51,7 +51,7 @@ export default function Home() {
             </h1>
             
             <p className="max-w-2xl text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Splitmate combines AI receipt scanning, trip budget trackers, and transaction-minimizing math algorithms to take the headache out of group finances.
+              Splitmate combines AI receipt scanning and transaction-minimizing math algorithms to take the headache out of group finances.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-2">
@@ -206,9 +206,9 @@ export default function Home() {
                 color: 'from-teal-500 to-blue-500',
               },
               {
-                title: 'Trip Companion',
-                description: 'Group expenses by trip, track budgets with progress rings, and manage itineraries.',
-                icon: Plane,
+                title: 'Simplified Settlements',
+                description: 'Clear balances inside groups directly with smart transaction-minimizing suggestions.',
+                icon: ArrowRightLeft,
                 color: 'from-cyan-500 to-blue-500',
               },
               {

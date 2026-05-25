@@ -32,7 +32,7 @@ const CATEGORIES = [
 
 export default function Dashboard() {
   const router = useRouter();
-  const { currentUser, groups, expenses, profiles, trips, isLoading } = useStore();
+  const { currentUser, groups, expenses, profiles, isLoading } = useStore();
 
   // Redirect to landing if not logged in
   useEffect(() => {
@@ -139,16 +139,16 @@ export default function Dashboard() {
       {/* Welcome Banner */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl">
             Welcome back, {currentUser.display_name}!
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Here is your financial status across all groups and trips.
+            Here is your financial status across all active splitting groups.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/groups">
-            <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 flex items-center gap-2 text-sm font-semibold">
+            <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 flex items-center gap-2 text-sm font-semibold shadow-lg shadow-emerald-600/10 hover:shadow-emerald-600/20 rounded-xl px-5 py-2.5 transition-all duration-200 scale-100 hover:scale-[1.01] active:scale-[0.99]">
               <Plus className="h-4 w-4" />
               Manage Groups
             </Button>
@@ -157,83 +157,83 @@ export default function Dashboard() {
       </div>
 
       {/* Balance Summary Cards */}
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
         {/* Net Balance */}
-        <Card className={`relative overflow-hidden border-zinc-200 dark:border-white/10 text-foreground dark:text-white shadow-md border-l-4 transition-all duration-200 ${
+        <Card className={`relative overflow-hidden border border-zinc-200 dark:border-zinc-800/80 text-foreground dark:text-white shadow-sm border-l-4 transition-all duration-200 rounded-2xl ${
           netBalance >= 0 
             ? 'border-l-emerald-500 bg-emerald-500/5 dark:bg-emerald-950/10' 
             : 'border-l-rose-500 bg-rose-500/5 dark:bg-rose-950/10'
         }`}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Net Balance</span>
-              <div className="rounded-lg bg-zinc-100 dark:bg-white/5 p-2 border border-zinc-200 dark:border-white/10">
+              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Net Balance</span>
+              <div className="rounded-xl bg-zinc-100 dark:bg-white/5 p-2 border border-zinc-200 dark:border-white/10">
                 <Coins className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
               </div>
             </div>
             <div className="mt-4">
-              <h3 className={`text-3xl font-extrabold tracking-tight ${
+              <h3 className={`text-3xl font-black tracking-tight ${
                 netBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
               }`}>
                 {netBalance >= 0 ? '+' : '-'}RM {Math.abs(netBalance).toFixed(2)}
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Across all split networks</p>
+              <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-1">Across all groups</p>
             </div>
           </CardContent>
         </Card>
 
         {/* You Are Owed */}
-        <Card className="relative overflow-hidden border-zinc-200 dark:border-white/10 border-l-4 border-l-blue-500 bg-blue-500/5 dark:bg-blue-950/10 text-foreground dark:text-white shadow-md">
+        <Card className="relative overflow-hidden border border-zinc-200 dark:border-zinc-800/80 border-l-4 border-l-blue-500 bg-blue-500/5 dark:bg-blue-950/10 text-foreground dark:text-white shadow-sm rounded-2xl">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">You Are Owed</span>
-              <div className="rounded-lg bg-blue-500/10 p-2 border border-blue-500/20">
+              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">You Are Owed</span>
+              <div className="rounded-xl bg-blue-500/10 p-2 border border-blue-500/20">
                 <ArrowUpRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
             <div className="mt-4">
-              <h3 className="text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400">
+              <h3 className="text-3xl font-black tracking-tight text-blue-600 dark:text-blue-400">
                 RM {totalOwed.toFixed(2)}
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Friends owe you this amount</p>
+              <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-1">Friends owe you this</p>
             </div>
           </CardContent>
         </Card>
 
         {/* You Owe */}
-        <Card className="relative overflow-hidden border-zinc-200 dark:border-white/10 border-l-4 border-l-rose-500 bg-rose-500/5 dark:bg-rose-950/10 text-foreground dark:text-white shadow-md">
+        <Card className="relative overflow-hidden border border-zinc-200 dark:border-zinc-800/80 border-l-4 border-l-rose-500 bg-rose-500/5 dark:bg-rose-950/10 text-foreground dark:text-white shadow-sm rounded-2xl">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">You Owe</span>
-              <div className="rounded-lg bg-rose-500/10 p-2 border border-rose-500/20">
+              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">You Owe</span>
+              <div className="rounded-xl bg-rose-500/10 p-2 border border-rose-500/20">
                 <ArrowDownLeft className="h-4 w-4 text-rose-600 dark:text-rose-400" />
               </div>
             </div>
             <div className="mt-4">
-              <h3 className="text-3xl font-extrabold tracking-tight text-rose-600 dark:text-rose-400">
+              <h3 className="text-3xl font-black tracking-tight text-rose-600 dark:text-rose-400">
                 RM {totalOwe.toFixed(2)}
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">You need to pay this back</p>
+              <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-1">You owe friends this</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Grid: Groups, Category Distribution, and Recent Activities */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         {/* Left 2 Columns */}
         <div className="lg:col-span-2 space-y-6">
           {/* Groups List */}
-          <Card className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/40 text-foreground dark:text-white shadow-md">
+          <Card className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950/30 text-foreground dark:text-white shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <span className="h-4 w-1 rounded-full bg-emerald-500 shrink-0" />
                   Your Active Groups
                 </CardTitle>
-                <CardDescription className="text-zinc-500 dark:text-zinc-400 text-xs">Collaborative bills splitting directories.</CardDescription>
+                <CardDescription className="text-zinc-500 dark:text-zinc-400 text-xs">Collaborative bill splitting workspaces.</CardDescription>
               </div>
-              <Link href="/groups" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-zinc-950 dark:hover:text-white flex items-center gap-1">
+              <Link href="/groups" className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 flex items-center gap-1">
                 View All
                 <ChevronRight className="h-3 w-3" />
               </Link>
@@ -241,7 +241,7 @@ export default function Dashboard() {
             <CardContent className="space-y-4">
               {groups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 text-center space-y-3 bg-zinc-50/50 dark:bg-zinc-900/10">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-zinc-400 dark:text-zinc-500">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-zinc-400 dark:text-zinc-500">
                     <Users className="h-5 w-5" />
                   </div>
                   <div>
@@ -249,29 +249,38 @@ export default function Dashboard() {
                     <p className="text-xs text-zinc-500 mt-0.5">Create a group to start tracking bills with roommates or friends.</p>
                   </div>
                   <Link href="/groups">
-                    <Button size="sm" variant="outline" className="text-xs mt-1 font-semibold">
+                    <Button size="sm" variant="outline" className="text-xs mt-1 font-bold rounded-xl px-4 py-2 border-zinc-200 dark:border-zinc-800">
                       Create Group
                     </Button>
                   </Link>
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   {groups.slice(0, 4).map((group) => {
-                    // Count member avatars
+                    const groupExpenses = expenses.filter(e => e.group_id === group.id);
+                    let userNetBalance = 0;
+                    groupExpenses.forEach(e => {
+                      const isPayer = e.paid_by_id === currentUser.id;
+                      const userSplit = e.splits.find((s) => s.profile_id === currentUser.id);
+                      const splitAmount = userSplit ? userSplit.amount : 0;
+                      if (isPayer) userNetBalance += e.amount;
+                      if (userSplit) userNetBalance -= splitAmount;
+                    });
+
                     return (
                       <Link key={group.id} href={`/groups/${group.id}`}>
-                        <div className="group rounded-xl border border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-zinc-900/60 p-5 transition hover:border-zinc-300 dark:hover:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900/90 flex flex-col justify-between h-36">
+                        <div className="group rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-900/30 p-5 transition hover:border-emerald-500/20 hover:bg-white dark:hover:bg-zinc-900/60 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between h-36 duration-200">
                           <div>
-                            <h4 className="font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition truncate">{group.name}</h4>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-1">{group.description}</p>
+                            <h4 className="font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition truncate text-sm">{group.name}</h4>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-1 min-h-8">{group.description || 'No description.'}</p>
                           </div>
-                          <div className="flex items-center justify-between border-t border-zinc-200 dark:border-white/5 pt-3 mt-3">
-                            <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">{group.members.length} members</span>
+                          <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800/80 pt-3 mt-3">
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{group.members.length} members</span>
                             <div className="flex -space-x-1.5 overflow-hidden">
                               {group.members.slice(0, 3).map((mid) => (
                                 <Avatar key={mid} className="h-5 w-5 ring-1 ring-white dark:ring-zinc-950">
                                   <AvatarImage src={profiles[mid]?.avatar_url} />
-                                  <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 text-[8px]">
+                                  <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 text-[8px] font-bold">
                                     {profiles[mid]?.display_name.charAt(0).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
@@ -288,7 +297,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Recent Activity */}
-          <Card className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/40 text-foreground dark:text-white shadow-md">
+          <Card className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950/30 text-foreground dark:text-white shadow-sm rounded-2xl">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <span className="h-4 w-1 rounded-full bg-emerald-500 shrink-0" />
@@ -298,33 +307,33 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {recentExpenses.length === 0 ? (
-                <div className="text-center py-8 text-zinc-500 text-sm">No expenses added yet.</div>
+                <div className="text-center py-8 text-zinc-505 text-sm italic font-medium">No expenses added yet.</div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {recentExpenses.map((exp) => {
                     const payer = profiles[exp.paid_by_id];
                     const activeGroup = groups.find((g) => g.id === exp.group_id);
                     const isSettlement = exp.category === 'settlement';
 
                     return (
-                      <div key={exp.id} className="flex items-center justify-between border-b border-zinc-100 dark:border-white/5 pb-3 last:border-0 last:pb-0">
+                      <div key={exp.id} className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3 last:border-0 last:pb-0">
                         <div className="flex items-center gap-3">
-                          <div className={`h-8 w-8 rounded-lg border flex items-center justify-center font-bold text-xs ${getCategoryColor(exp.category)}`}>
-                            {exp.category.charAt(0).toUpperCase()}
+                          <div className={`h-8 w-8 rounded-xl border flex items-center justify-center font-bold text-[10px] shrink-0 ${getCategoryColor(exp.category)}`}>
+                            {exp.category.substring(0, 2).toUpperCase()}
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{exp.description}</p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">{exp.description}</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                               Paid by <span className="font-semibold text-zinc-700 dark:text-zinc-300">{payer?.display_name || 'Someone'}</span>
-                              {activeGroup && <> in <span className="text-zinc-500 dark:text-zinc-400">{activeGroup.name}</span></>}
+                              {activeGroup && <> in <span className="text-zinc-500 dark:text-zinc-400 font-bold">{activeGroup.name}</span></>}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-sm font-bold ${isSettlement ? 'text-teal-600 dark:text-teal-400' : 'text-zinc-800 dark:text-zinc-200'}`}>
+                        <div className="text-right shrink-0">
+                          <p className={`text-sm font-bold font-mono ${isSettlement ? 'text-teal-600 dark:text-teal-400 font-black' : 'text-zinc-800 dark:text-zinc-200'}`}>
                             RM {exp.amount.toFixed(2)}
                           </p>
-                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{exp.date}</p>
+                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold tracking-wider">{exp.date}</p>
                         </div>
                       </div>
                     );
@@ -338,7 +347,7 @@ export default function Dashboard() {
         {/* Right Column */}
         <div className="space-y-6">
           {/* Category Spending Progress Bars */}
-          <Card className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/40 text-foreground dark:text-white shadow-md">
+          <Card className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950/30 text-foreground dark:text-white shadow-sm rounded-2xl">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <span className="h-4 w-1 rounded-full bg-emerald-500 shrink-0" />
@@ -348,9 +357,9 @@ export default function Dashboard() {
                 Your personal shares by categories.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-4">
               {totalSpending === 0 ? (
-                <div className="text-center py-8 text-zinc-500 text-sm">No personal spending logged.</div>
+                <div className="text-center py-6 text-zinc-505 text-sm italic font-medium">No personal spending logged.</div>
               ) : (
                 Object.entries(categoryTotals)
                   .sort((a, b) => b[1] - a[1])
@@ -361,11 +370,10 @@ export default function Dashboard() {
                     return (
                       <div key={cat} className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs font-semibold">
-                          <span className="text-zinc-700 dark:text-zinc-300 capitalize">{catInfo.label}</span>
-                          <span className="text-zinc-500 dark:text-zinc-400">RM {amt.toFixed(2)} ({percentage.toFixed(0)}%)</span>
+                          <span className="text-zinc-650 dark:text-zinc-350 capitalize">{catInfo.label}</span>
+                          <span className="text-zinc-500 dark:text-zinc-400 font-mono text-[11px] font-bold">RM {amt.toFixed(2)} ({percentage.toFixed(0)}%)</span>
                         </div>
-                        {/* Custom Progress bar */}
-                        <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-2 w-full bg-zinc-150 dark:bg-zinc-900 rounded-full overflow-hidden border border-zinc-200/20">
                           <div
                             className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
                             style={{ width: `${percentage}%` }}
@@ -378,70 +386,48 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Quick Stats & Trip Planner widget */}
-          <Card className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/40 text-foreground dark:text-white shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <span className="h-4 w-1 rounded-full bg-emerald-500 shrink-0" />
-                  Active Trips
-                </CardTitle>
-                <CardDescription className="text-zinc-500 dark:text-zinc-400 text-xs">Your travel companions budget.</CardDescription>
-              </div>
-              <Link href="/trips" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-zinc-950 dark:hover:text-white flex items-center gap-1">
-                View All
-                <ChevronRight className="h-3 w-3" />
-              </Link>
+          {/* Group Balances Overview Card */}
+          <Card className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950/30 text-foreground dark:text-white shadow-sm rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <span className="h-4 w-1 rounded-full bg-emerald-500 shrink-0" />
+                Groups Balances
+              </CardTitle>
+              <CardDescription className="text-zinc-500 dark:text-zinc-400 text-xs">Your net balance in each group.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {trips.length === 0 ? (
-                <div className="flex flex-col items-center justify-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 text-center space-y-3 bg-zinc-50/50 dark:bg-zinc-900/10">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-zinc-400 dark:text-zinc-500">
-                    <Plane className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No travel plans yet</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">Plan a trip to track budgets and travel itineraries.</p>
-                  </div>
-                  <Link href="/trips">
-                    <Button size="sm" variant="outline" className="text-xs font-semibold mt-1">
-                      Plan a Trip
-                    </Button>
-                  </Link>
-                </div>
+            <CardContent className="space-y-3">
+              {groups.length === 0 ? (
+                <div className="text-center py-6 text-zinc-505 text-sm italic font-medium">No groups found.</div>
               ) : (
-                trips.slice(0, 2).map((trip) => {
-                  // Calculate budget percentage spent
-                  const tripExpenses = expenses.filter(e => e.trip_id === trip.id);
-                  const totalSpent = tripExpenses.reduce((sum, e) => sum + e.amount, 0);
-                  const budgetPercentage = trip.budget > 0 ? Math.min((totalSpent / trip.budget) * 100, 100) : 0;
+                groups.slice(0, 4).map((group) => {
+                  const groupExpenses = expenses.filter(e => e.group_id === group.id);
+                  let userNetBalance = 0;
+                  groupExpenses.forEach(e => {
+                    const isPayer = e.paid_by_id === currentUser.id;
+                    const userSplit = e.splits.find(s => s.profile_id === currentUser.id);
+                    const splitAmount = userSplit ? userSplit.amount : 0;
+                    if (isPayer) userNetBalance += e.amount;
+                    if (userSplit) userNetBalance -= splitAmount;
+                  });
 
                   return (
-                    <Link key={trip.id} href={`/trips/${trip.id}`} className="block">
-                      <div className="rounded-xl border border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-zinc-900/60 p-4 transition hover:border-zinc-300 dark:hover:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900/90 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div className="truncate pr-2">
-                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate">{trip.name}</h4>
-                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">{trip.start_date} to {trip.end_date}</p>
-                          </div>
-                          <span className="text-[10px] bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/10 px-2 py-0.5 rounded font-semibold">
-                            Trip
-                          </span>
-                        </div>
-                        
-                        {/* Budget Bar */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-                            <span>Spent: RM {totalSpent.toFixed(0)}</span>
-                            <span>Budget: RM {trip.budget.toFixed(0)}</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${budgetPercentage > 90 ? 'bg-rose-500' : 'bg-teal-500'}`}
-                              style={{ width: `${budgetPercentage}%` }}
-                            />
-                          </div>
-                        </div>
+                    <Link key={group.id} href={`/groups/${group.id}`} className="block">
+                      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-900/30 p-3.5 transition hover:border-emerald-500/15 hover:bg-white dark:hover:bg-zinc-900/60 flex justify-between items-center duration-200">
+                        <span className="font-bold text-xs text-zinc-800 dark:text-zinc-200 truncate max-w-[150px]">{group.name}</span>
+                        <span className={`text-xs font-extrabold font-mono ${
+                          userNetBalance > 0.005 
+                            ? 'text-emerald-600 dark:text-emerald-400' 
+                            : userNetBalance < -0.005 
+                              ? 'text-rose-600 dark:text-rose-400' 
+                              : 'text-zinc-505'
+                        }`}>
+                          {userNetBalance > 0.005 
+                            ? `+RM ${userNetBalance.toFixed(2)}` 
+                            : userNetBalance < -0.005 
+                              ? `-RM ${Math.abs(userNetBalance).toFixed(2)}` 
+                              : 'Settled'
+                          }
+                        </span>
                       </div>
                     </Link>
                   );

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { isMockMode } from '@/lib/supabase';
+import { isMockMode, supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,9 @@ import {
   Sun, 
   Moon, 
   Wallet,
-  Coins
+  Coins,
+  Loader2,
+  Plus
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -67,6 +69,15 @@ export default function SettingsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
+
+  // Password Change, Photo Upload, & Account Deletion State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState<string | null>(null);
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState<string | null>(null);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !currentUser) {
@@ -166,6 +177,115 @@ export default function SettingsPage() {
       setErrorMsg(err.message || 'Failed to update settings. Please try again.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      if (isMockMode) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setAvatarUrl(event.target.result as string);
+            setSuccessMsg('Profile picture loaded locally!');
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
+        const filePath = `${currentUser.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+        if (uploadError) {
+          throw new Error('Supabase Storage: ' + uploadError.message + '. Please ensure the "avatars" bucket is created and set to public in Supabase Storage.');
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        setAvatarUrl(publicUrl);
+        setSuccessMsg('Avatar uploaded successfully! Save changes to apply.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to upload photo');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordSuccessMsg(null);
+    setPasswordErrorMsg(null);
+
+    if (newPassword.length < 6) {
+      setPasswordErrorMsg('Password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordErrorMsg('Passwords do not match');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      if (isMockMode) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      } else {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+      }
+      setPasswordSuccessMsg('Password updated successfully!');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      console.error(err);
+      setPasswordErrorMsg(err.message || 'Failed to update password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmMessage = isMockMode
+      ? 'Are you sure you want to permanently delete your offline user profile?'
+      : 'Are you sure you want to delete your account? This will permanently delete your profile, group memberships, and sign you out.';
+    
+    if (!confirm(confirmMessage)) return;
+
+    setIsDeletingAccount(true);
+    try {
+      if (isMockMode) {
+        localStorage.removeItem('splitmate_user');
+        localStorage.removeItem('splitmate_profiles');
+        localStorage.removeItem('splitmate_groups');
+        localStorage.removeItem('splitmate_expenses');
+        localStorage.removeItem('splitmate_trips');
+        window.location.href = '/login';
+      } else {
+        const { error } = await supabase.from('users').delete().eq('id', currentUser.id);
+        if (error) throw error;
+        await supabase.auth.signOut();
+        window.location.href = '/login';
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to delete account. Try again.');
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -279,7 +399,7 @@ export default function SettingsPage() {
                       </AvatarFallback>
                     </Avatar>
                     
-                    <div className="grid grid-cols-6 gap-2 max-w-sm">
+                    <div className="flex flex-wrap gap-2 items-center max-w-sm">
                       {PRESET_AVATARS.map((preset) => {
                         const isSelected = avatarUrl === preset.url;
                         return (
@@ -297,6 +417,26 @@ export default function SettingsPage() {
                           </button>
                         );
                       })}
+
+                      <Label
+                        htmlFor="avatar-file-upload"
+                        className="relative flex h-10 w-10 rounded-full items-center justify-center border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-emerald-500 dark:hover:border-emerald-500 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 transition duration-200 shrink-0"
+                        title="Upload profile photo"
+                      >
+                        {isUploading ? (
+                          <Loader2 className="h-4 w-4 text-emerald-500 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                        )}
+                        <input
+                          id="avatar-file-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarFileUpload}
+                          disabled={isUploading}
+                        />
+                      </Label>
                     </div>
                   </div>
 
@@ -369,6 +509,66 @@ export default function SettingsPage() {
 
               </CardContent>
             </Card>
+
+            {/* Change Password Card */}
+            <Card className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/40 text-foreground dark:text-white shadow-sm rounded-2xl">
+              <CardHeader>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Lock className="h-4.5 w-4.5 text-emerald-500" />
+                  Change Password
+                </CardTitle>
+                <CardDescription className="text-zinc-500 dark:text-zinc-400">Update your account login security credentials.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {passwordSuccessMsg && (
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 p-4 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>{passwordSuccessMsg}</span>
+                  </div>
+                )}
+                {passwordErrorMsg && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 p-4 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                    <span>{passwordErrorMsg}</span>
+                  </div>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="newPassword" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min 6 characters"
+                      className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat password"
+                      className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    onClick={handlePasswordChange}
+                    disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg"
+                  >
+                    {isUpdatingPassword ? 'Updating Password...' : 'Update Password'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* TAB 2: Payment Details */}
@@ -395,7 +595,10 @@ export default function SettingsPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label htmlFor="duitnowType" className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">DuitNow ID Type</Label>
-                      <Select value={duitnowType} onValueChange={(val) => setDuitnowType(val || 'phone')}>
+                      <Select 
+                        value={duitnowType} 
+                        onValueChange={(val) => setDuitnowType(val || 'phone')}
+                      >
                         <SelectTrigger className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500">
                           <SelectValue placeholder="Select ID Type" />
                         </SelectTrigger>
@@ -531,7 +734,10 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Default Currency</Label>
                   <div className="max-w-xs">
-                    <Select value={defaultCurrency} onValueChange={(val) => setDefaultCurrency(val || 'RM')}>
+                    <Select 
+                      value={defaultCurrency} 
+                      onValueChange={(val) => setDefaultCurrency(val || 'RM')}
+                    >
                       <SelectTrigger className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500">
                         <SelectValue placeholder="Select Currency" />
                       </SelectTrigger>
@@ -579,6 +785,24 @@ export default function SettingsPage() {
                     className="border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold shrink-0 self-start sm:self-center"
                   >
                     Clear Database Cache
+                  </Button>
+                </div>
+
+                {/* Account Deletion */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-zinc-100 dark:border-zinc-800 pt-6">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-rose-600 dark:text-rose-400">Permanently Delete Account</p>
+                    <p className="text-[11px] text-zinc-500">
+                      Delete your user profile, leave all groups, and permanently remove your data from Splitmate.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={isDeletingAccount}
+                    className="bg-rose-600 hover:bg-rose-500 text-white font-bold shrink-0 self-start sm:self-center text-xs px-4 py-2 rounded-lg"
+                  >
+                    {isDeletingAccount ? 'Deleting Account...' : 'Delete Account'}
                   </Button>
                 </div>
 

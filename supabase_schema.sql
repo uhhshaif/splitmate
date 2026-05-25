@@ -117,6 +117,9 @@ CREATE POLICY "Allow users to update their own profiles" ON users
 CREATE POLICY "Allow users to insert their own profile" ON users
   FOR INSERT WITH CHECK (auth.uid() = id);
 
+CREATE POLICY "Allow users to delete their own profiles" ON users
+  FOR DELETE USING (auth.uid() = id);
+
 -- Groups Policies
 CREATE POLICY "Allow read access to groups the user belongs to" ON groups
   FOR SELECT USING (
@@ -130,6 +133,9 @@ CREATE POLICY "Allow authenticated users to create groups" ON groups
 
 CREATE POLICY "Allow group creator to update group details" ON groups
   FOR UPDATE USING (created_by = auth.uid());
+
+CREATE POLICY "Allow creator to delete groups" ON groups
+  FOR DELETE USING (created_by = auth.uid());
 
 -- Group Members Policies
 CREATE POLICY "Allow group members to view members of their groups" ON group_members
@@ -147,6 +153,9 @@ CREATE POLICY "Allow group members to add others" ON group_members
     )
   );
 
+CREATE POLICY "Allow users to leave groups" ON group_members
+  FOR DELETE USING (user_id = auth.uid());
+
 -- Trips Policies
 CREATE POLICY "Allow group members to read trips" ON trips
   FOR SELECT USING (
@@ -155,6 +164,16 @@ CREATE POLICY "Allow group members to read trips" ON trips
 
 CREATE POLICY "Allow members to create trips" ON trips
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Allow group members to update trips" ON trips
+  FOR UPDATE USING (
+    group_id IS NULL OR check_is_group_member(group_id, auth.uid())
+  );
+
+CREATE POLICY "Allow group members to delete trips" ON trips
+  FOR DELETE USING (
+    group_id IS NULL OR check_is_group_member(group_id, auth.uid())
+  );
 
 -- Expenses Policies
 CREATE POLICY "Allow group members to read group expenses" ON expenses
@@ -165,6 +184,20 @@ CREATE POLICY "Allow group members to read group expenses" ON expenses
 CREATE POLICY "Allow group members to create expenses" ON expenses
   FOR INSERT WITH CHECK (
     check_is_group_member(group_id, auth.uid())
+  );
+
+CREATE POLICY "Allow creator or payer to update expenses" ON expenses
+  FOR UPDATE USING (
+    created_by = auth.uid()
+    OR
+    paid_by = auth.uid()
+  );
+
+CREATE POLICY "Allow creator or payer to delete expenses" ON expenses
+  FOR DELETE USING (
+    created_by = auth.uid()
+    OR
+    paid_by = auth.uid()
   );
 
 -- Expense Splits Policies
@@ -184,6 +217,14 @@ CREATE POLICY "Allow group members to create splits" ON expense_splits
     )
   );
 
+CREATE POLICY "Allow creator or payer to delete splits" ON expense_splits
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM expenses
+      WHERE expenses.id = expense_splits.expense_id AND (expenses.created_by = auth.uid() OR expenses.paid_by = auth.uid())
+    )
+  );
+
 -- Settlements Policies
 CREATE POLICY "Allow group members to view settlements" ON settlements
   FOR SELECT USING (
@@ -192,6 +233,11 @@ CREATE POLICY "Allow group members to view settlements" ON settlements
 
 CREATE POLICY "Allow group members to create settlements" ON settlements
   FOR INSERT WITH CHECK (
+    check_is_group_member(group_id, auth.uid())
+  );
+
+CREATE POLICY "Allow group members to delete settlements" ON settlements
+  FOR DELETE USING (
     check_is_group_member(group_id, auth.uid())
   );
 
