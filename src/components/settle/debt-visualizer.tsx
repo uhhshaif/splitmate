@@ -151,7 +151,7 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
+                        onClick={async () => {
                           const debtorName = debtor.display_name.split(' ')[0];
                           let paymentDetails = '';
                           if (currentUser.duitnow_id) {
@@ -169,9 +169,28 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
 
                           const text = `Hey ${debtorName}! Just a friendly reminder to settle RM ${tx.amount.toFixed(2)} for our shared expenses in "${group.name}" on Splitmate.${paymentDetails ? ` You can transfer to me via:${paymentDetails}` : ''}\nThanks! 🙏`;
                           
-                          navigator.clipboard.writeText(text);
-                          setSuccessMsg(`Friendly reminder message for ${debtor.display_name} copied to clipboard!`);
-                          setTimeout(() => setSuccessMsg(null), 4500);
+                          try {
+                            if (navigator.clipboard && window.isSecureContext) {
+                              await navigator.clipboard.writeText(text);
+                            } else {
+                              const textArea = document.createElement("textarea");
+                              textArea.value = text;
+                              textArea.style.position = "fixed";
+                              textArea.style.left = "-999999px";
+                              textArea.style.top = "-999999px";
+                              document.body.appendChild(textArea);
+                              textArea.focus();
+                              textArea.select();
+                              const successful = document.execCommand('copy');
+                              textArea.remove();
+                              if (!successful) throw new Error("Fallback copy failed");
+                            }
+                            setSuccessMsg(`Friendly reminder message for ${debtor.display_name} copied to clipboard!`);
+                            setTimeout(() => setSuccessMsg(null), 4500);
+                          } catch (err) {
+                            console.error("Clipboard copy error:", err);
+                            alert("Unable to copy to clipboard. Please copy manually.");
+                          }
                         }}
                         title="Copy payment reminder"
                         className="text-xs font-semibold hover:bg-amber-500/10 hover:text-amber-600 text-zinc-400 h-8 w-8 p-0 rounded-lg shrink-0"
@@ -179,14 +198,16 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
                         <Bell className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSettleClick(tx)}
-                      className="text-xs font-semibold transition hover:bg-teal-600 dark:hover:bg-teal-700 hover:text-white border-teal-500/20 shrink-0 w-full sm:w-auto"
-                    >
-                      Settle
-                    </Button>
+                    {currentUser?.id === tx.from && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSettleClick(tx)}
+                        className="text-xs font-semibold transition hover:bg-teal-600 dark:hover:bg-teal-700 hover:text-white border-teal-500/20 shrink-0 w-full sm:w-auto"
+                      >
+                        Settle
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
