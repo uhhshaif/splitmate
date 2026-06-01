@@ -156,8 +156,8 @@ export async function POST(request: Request) {
 Your task is to parse a text message describing an expense in a group of Malaysian students and extract:
 1. "title": A concise merchant or expense name (e.g. "Dinner at Mamak", "Grab ride").
 2. "amount": The total amount of the transaction as a floating-point number. Treat Malaysian Ringgit (RM) as the primary currency (e.g. RM45 = 45.00).
-   - If the input text specifies a tax, service charge, or tip to be added (e.g. "plus 3% tax", "there is a 3 percent service tax", "add 10% tip"), calculate the final total amount by adding that percentage to the base amount.
-   - If the total amount is stated as a base and tax is mentioned as included (e.g. "60rm including tax"), the total amount is just that base.
+   - If a tax, service charge, or tip is mentioned (e.g. "there was a 10 percent service tax"), assume it is ALREADY INCLUDED in the total amount mentioned, UNLESS the user explicitly says to "add" or "plus" it (e.g. "plus 10% tax", "add 3% tip").
+   - If the tax is included in the total, calculate the individual shares so that they sum up EXACTLY to the total amount provided. Do not arbitrarily increase the total amount unless explicitly told to "add" the tax on top.
 3. "paid_by": The ID of the member who paid. Look at the group members list and match the name. 
    - Words like "I", "me", "myself" refer to the Current User (ID: ${currentUserId}).
    - If the name is mentioned, find the closest matching member display name.
