@@ -162,10 +162,9 @@ Your task is to parse a text message describing an expense in a group of Malaysi
    - Words like "I", "me", "myself" refer to the Current User (ID: ${currentUserId}).
    - If the name is mentioned, find the closest matching member display name.
 4. "splits": An array of objects: { "user_id": string, "amount_owed": float } representing who is split into the expense.
-   - If the text specifies who participated (e.g. "me and Reza", "except Jessica"), split only among them.
-   - If not specified or says "everyone", "split equally", split among ALL members of the group.
-   - Calculate equal division of the total amount. Ensure the sum of splits equals the total amount.
-   - If individual items or meals are specified (e.g., "i paid 32rm for my meal the other guy remaining"), calculate each person's base share. If a tax/service charge/tip percentage is mentioned (e.g. "3% service tax"), apply that percentage to each person's base share. Ensure the sum of all splits equals the final calculated total amount.
+   - If the text specifies who participated, split only among them.
+   - If individual items or meals are specified (e.g., "i spent rm 28 and shaif spent the rest"), calculate each person's base share first. 
+   - IMPORTANT TAX RULE: If a tax/service charge is mentioned (e.g. "10 percent service tax") and is ALREADY INCLUDED in the total amount, you must STILL apply that tax percentage to each person's individual base share to get their final "amount_owed". For example, if total is 55, your meal is 28, and tax is 10%, your final share is 28 * 1.10 = 30.80. Ensure the sum of all final splits equals the total amount.
 5. "category": Must be one of: "food", "housing", "transport", "entertainment", "utilities", "lodging", "general".
 6. "date": Extract the date if mentioned, otherwise default to today's date (${dateContext || new Date().toISOString().split('T')[0]}).
 
@@ -217,10 +216,10 @@ Example output format:
         console.warn('Gemini 2.5-flash fetch failed, attempting fallback...', err);
       }
 
-      // Fallback to gemini-1.5-flash if the primary request failed or returned an error status (like 503)
+      // Fallback to gemini-3.5-flash if the primary request failed or returned an error status (like 503)
       if (!response || !response.ok) {
-        console.warn('Gemini 2.5-flash unavailable or returned error. Retrying with gemini-1.5-flash...');
-        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+        console.warn('Gemini 2.5-flash unavailable or returned error. Retrying with gemini-3.5-flash...');
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
