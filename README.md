@@ -6,6 +6,25 @@ Splitmate operates in two synchronization modes: **Production Mode** (synced wit
 
 ---
 
+## Live Deployment
+
+Experience Splitmate live on Vercel:
+👉 **[https://splitmate-6gqnlfuwn-uhhshaifs-projects.vercel.app](https://splitmate-6gqnlfuwn-uhhshaifs-projects.vercel.app)**
+
+*(Note: Since it's a shared environment, you may see data from other users. You can create a group to start fresh.)*
+
+---
+
+## How to Use the App
+
+1. **Sign Up / Login**: Create a new account or log in with your existing credentials.
+2. **Create a Group**: From your dashboard, click "Manage Groups" or "Create Group" to start a new shared workspace.
+3. **Invite Members**: Add your friends or roommates to the group using their email addresses.
+4. **Log Expenses**: Use the "Add Expense" button to manually enter a bill, or use the "Scan Receipt" feature to let the AI automatically extract line items and amounts.
+5. **Track Balances**: View your dashboard to see your net balance across all groups, who you owe, and who owes you.
+6. **Settle Up**: Review the simplified debts in your group. You can view uploaded DuitNow/QR payment codes directly on member profiles to easily transfer funds.
+
+---
 ## Core Features
 
 ### 1. AI-Powered Receipt Scanner
