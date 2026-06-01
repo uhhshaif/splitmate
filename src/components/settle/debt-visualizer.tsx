@@ -101,49 +101,52 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
               if (!debtor || !creditor) return null;
 
               return (
-                <div key={idx} className="flex items-center justify-between py-4 first:pt-0 last:pb-0 gap-2">
-                  {/* Debtor Profile */}
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10 shrink-0">
-                      <AvatarImage src={debtor.avatar_url} alt={debtor.display_name} />
-                      <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                        {debtor.display_name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-tight break-words">{debtor.display_name}</p>
-                      <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-0.5">owes</p>
+                <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center justify-between py-4 first:pt-0 last:pb-0 gap-y-3 gap-x-2 border-b border-zinc-100 dark:border-white/5 last:border-0">
+                  {/* Transaction Core */}
+                  <div className="flex items-center justify-between flex-1 min-w-0 basis-full sm:basis-auto gap-2">
+                    {/* Debtor Profile */}
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10 shrink-0">
+                        <AvatarImage src={debtor.avatar_url} alt={debtor.display_name} />
+                        <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                          {debtor.display_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-tight break-words">{debtor.display_name}</p>
+                        <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-0.5">owes</p>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Arrow & Amount */}
-                  <div className="flex flex-col items-center justify-center px-0.5 sm:px-1 text-center shrink-0">
-                    <span className="text-xs font-extrabold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/5 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-white/10 shadow-sm whitespace-nowrap">
-                      RM {tx.amount.toFixed(2)}
-                    </span>
-                    <div className="flex items-center gap-1 mt-1 text-zinc-400 dark:text-zinc-500">
-                      <div className="h-px w-3 sm:w-5 bg-zinc-200 dark:bg-zinc-800" />
-                      <ArrowRight className="h-3 w-3 shrink-0" />
-                      <div className="h-px w-3 sm:w-5 bg-zinc-200 dark:bg-zinc-800" />
+                    {/* Arrow & Amount */}
+                    <div className="flex flex-col items-center justify-center px-0.5 sm:px-1 text-center shrink-0">
+                      <span className="text-xs font-extrabold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/5 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-white/10 shadow-sm whitespace-nowrap">
+                        RM {tx.amount.toFixed(2)}
+                      </span>
+                      <div className="flex items-center gap-1 mt-1 text-zinc-400 dark:text-zinc-500">
+                        <div className="h-px w-3 sm:w-5 bg-zinc-200 dark:bg-zinc-800" />
+                        <ArrowRight className="h-3 w-3 shrink-0" />
+                        <div className="h-px w-3 sm:w-5 bg-zinc-200 dark:bg-zinc-800" />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Creditor Profile */}
-                  <div className="flex items-center justify-end gap-2 min-w-0 flex-1 text-right">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-tight break-words">{creditor.display_name}</p>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">gets paid</p>
+                    {/* Creditor Profile */}
+                    <div className="flex items-center justify-end gap-2 min-w-0 flex-1 text-right">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-tight break-words">{creditor.display_name}</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">gets paid</p>
+                      </div>
+                      <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10 shrink-0">
+                        <AvatarImage src={creditor.avatar_url} alt={creditor.display_name} />
+                        <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-500 dark:text-zinc-300">
+                          {creditor.display_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                     </div>
-                    <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10 shrink-0">
-                      <AvatarImage src={creditor.avatar_url} alt={creditor.display_name} />
-                      <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-500 dark:text-zinc-300">
-                        {creditor.display_name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
                   </div>
 
                   {/* Settle Action Button */}
-                  <div className="pl-2 flex items-center justify-end gap-1.5 shrink-0">
+                  <div className="flex items-center justify-end gap-2 shrink-0 basis-full sm:basis-auto sm:pl-2">
                     {currentUser?.id === tx.to && (
                       <Button
                         size="sm"
@@ -180,7 +183,7 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
                       size="sm"
                       variant="outline"
                       onClick={() => handleSettleClick(tx)}
-                      className="text-xs font-semibold transition hover:bg-teal-600 dark:hover:bg-teal-700 hover:text-white border-teal-500/20 shrink-0"
+                      className="text-xs font-semibold transition hover:bg-teal-600 dark:hover:bg-teal-700 hover:text-white border-teal-500/20 shrink-0 w-full sm:w-auto"
                     >
                       Settle
                     </Button>
