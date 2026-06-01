@@ -9,9 +9,14 @@ Splitmate operates in two synchronization modes: **Production Mode** (synced wit
 ## Live Deployment
 
 Experience Splitmate live on Vercel:
-👉 **[https://splitmate-76svbsuaz-uhhshaifs-projects.vercel.app/](https://splitmate-76svbsuaz-uhhshaifs-projects.vercel.app/)**
+👉 **[https://splitmate-gray.vercel.app/](https://splitmate-gray.vercel.app/)**
 
-*(Note: Since it's a shared environment, you may see data from other users. You can create a group to start fresh.)*
+### Demo Account for Reviewers
+Splitmate is configured with an offline **Sandbox Mock Mode** that activates automatically when database keys aren't present. To explore the app with pre-populated data (expenses, groups, and settlements), simply navigate to the deployment link, click **Sign In**, and use the following demo credentials:
+- **Email:** `alex@splitmate.com`
+- **Name:** `Alex Rivera` (or any mock name)
+
+*(Note: Because it's running in Sandbox mode, you can actually type ANY email to create a fresh local session!)*
 
 ---
 
