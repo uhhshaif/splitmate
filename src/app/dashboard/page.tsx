@@ -512,9 +512,9 @@ export default function Dashboard() {
                     <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-zinc-850 dark:text-zinc-200">You're all settled!</p>
+                    <p className="text-xs font-bold text-zinc-850 dark:text-zinc-200">No approvals needed</p>
                     <p className="text-[10px] text-zinc-500 dark:text-zinc-400 max-w-[200px] mx-auto leading-relaxed">
-                      No pending settlements require your approval.
+                      You have no incoming payments to approve.
                     </p>
                   </div>
                 </div>
