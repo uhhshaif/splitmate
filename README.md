@@ -22,9 +22,9 @@ Splitmate operates in two synchronization modes: **Production Mode** (synced wit
 * **Minimizing Transactions**: Reduces transaction friction by calculating the absolute net balance of each user in a group.
 * **Graph Optimization**: Employs a network flow graph algorithm that simplifies debts (e.g., if User A owes B RM10, and B owes C RM10, A is instructed to pay C RM10 directly), minimizing the total number of payment transfers.
 
-### 4. Integrated Payment Settlement
-* **Local Payment Integration**: Settlement cards include payment methods tailored for Malaysian users (DuitNow type/ID, TNG Phone, MAE Account, PayPal, and Venmo).
-* **Confirm Settlement workflow**: Displays the creditor's payment handles inside the settle flow, letting users record and approve settled balances.
+### 4. Shared Member Payment QR Codes
+* **Profile QR Display**: Users can upload their payment QR codes (such as DuitNow, Touch 'n Go, or MAE QRs) directly in their profile settings.
+* **Groups QR View**: Group members can view each other's uploaded payment QR codes directly under the members tab of the group page, with support for a zoomable lightbox overlay for instant scanning.
 
 ### 5. Premium UI/UX and Themes
 * **Interactive Spending Analytics**: Category-based pie charts showing spending breakdowns (Food, Housing, Transport, Utilities, Lodging, Entertainment, and General) with interactive hover overlays.
