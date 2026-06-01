@@ -6,6 +6,15 @@ Splitmate operates in two synchronization modes: **Production Mode** (synced wit
 
 ---
 
+## Live Deployment
+
+Experience Splitmate live on Vercel:
+👉 **[https://splitmate-6gqnlfuwn-uhhshaifs-projects.vercel.app/](https://splitmate-6gqnlfuwn-uhhshaifs-projects.vercel.app/)**
+
+*(Note: Since it's a shared environment, you may see data from other users. You can create a group to start fresh.)*
+
+---
+
 
 ## How to Use the App
 
