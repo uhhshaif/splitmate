@@ -15,7 +15,7 @@ Experience Splitmate live on Vercel:
 To explore the app with pre-populated data (groups, expenses, and settlements), simply navigate to the live deployment link, click **Sign In**, and use either of the following test accounts:
 
 **Account 1:**
-- **Email:** `test@gmail.com`
+- **Email:** `test1@gmail.com`
 - **Password:** `Test12345`
 
 **Account 2:**
