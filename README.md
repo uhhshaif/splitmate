@@ -9,30 +9,26 @@ Splitmate operates in two synchronization modes: **Production Mode** (synced wit
 ## Core Features
 
 ### 1. AI-Powered Receipt Scanner
-* Users can upload a receipt image or capture it directly using a webcam.
-* The backend API uses Google Gemini or Anthropic Claude LLM integration to extract the merchant name, total transaction amount, line items, service tax (SST), and service charge percentage.
+* **File Upload & Laptop Webcam Capture**: Users can upload a receipt image or capture one directly using their laptop's built-in webcam.
+* **Line Item Extraction**: The backend API uses Google Gemini or Anthropic Claude LLM integration to extract the merchant name, total transaction amount, line items, service tax (SST), and service charge percentage.
 * **API Resilience**: If no API keys are provided or rate limits are reached, the system automatically falls back to a mock simulation mode that reads context from file names (e.g., matching "grab" with ride fares or "hotel" with lodging rates) so the feature remains fully functional during reviews.
 
 ### 2. NLP Quick-Parse Assistant
-* Paste a natural conversational sentence (e.g., *"I paid RM45 for Nasi Lemak dinner split equally with Marcus and Jessica"*) to log an expense instantly.
-* The Natural Language Processing parser extracts the description, category, payer, total amount, and splits the shares among the mentioned group members.
-* Includes a local regex-heuristic parser fallback for offline execution.
+* **Natural Language Inputs**: Paste a natural conversational sentence (e.g., *"I paid RM60 for groceries split equally with Marcus and Jessica"*) to log an expense instantly.
+* **Auto-Split Calculation**: The Natural Language Processing parser extracts the description, category, payer, total amount, and splits the shares among the mentioned group members.
+* **Fallback parser**: Includes a local regex-heuristic parser fallback for offline execution.
 
 ### 3. Smart Debt Simplification Algorithm
-* Reduces transaction friction by calculating the absolute net balance of each user in a group.
-* Employs a network flow graph algorithm that simplifies debts (e.g., if User A owes B RM10, and B owes C RM10, A is instructed to pay C RM10 directly), minimizing the total number of transfers.
+* **Minimizing Transactions**: Reduces transaction friction by calculating the absolute net balance of each user in a group.
+* **Graph Optimization**: Employs a network flow graph algorithm that simplifies debts (e.g., if User A owes B RM10, and B owes C RM10, A is instructed to pay C RM10 directly), minimizing the total number of payment transfers.
 
-### 4. Mobile Web Companion (Real-time Sync)
-* Synchronizes desktop and mobile browsers through a real-time QR link sequence.
-* Scan the desktop link on your phone to open a mobile-optimized camera frame, snap a receipt photo, and watch it upload and populate the desktop expense form in real time.
+### 4. Integrated Payment Settlement
+* **Local Payment Integration**: Settlement cards include payment methods tailored for Malaysian users (DuitNow type/ID, TNG Phone, MAE Account, PayPal, and Venmo).
+* **Confirm Settlement workflow**: Displays the creditor's payment handles inside the settle flow, letting users record and approve settled balances.
 
-### 5. Integrated Payment Settlement
-* Paid settlement cards include payment methods tailored for Malaysian users (DuitNow type/ID, TNG Phone, MAE Account, PayPal, and Venmo).
-* Clicking a creditor profile triggers a zoomable lightbox overlay displaying their payment QR code for seamless scanning.
-
-### 6. Premium UI/UX and Themes
-* Dynamic interactive charts showing spending breakdowns by category (Food, Housing, Transport, Utilities, Lodging, Entertainment, and General).
-* Responsive layout with smooth transitions, light/dark mode toggling, custom Radix UI Dialog modals, and premium empty onboarding states.
+### 5. Premium UI/UX and Themes
+* **Interactive Spending Analytics**: Category-based pie charts showing spending breakdowns (Food, Housing, Transport, Utilities, Lodging, Entertainment, and General) with interactive hover overlays.
+* **Modern Interface**: Responsive layout with smooth transitions, light/dark mode toggling, custom Radix UI Dialog modals, and custom empty onboarding states.
 
 ---
 
