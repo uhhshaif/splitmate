@@ -34,14 +34,19 @@ export default function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      className="text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white transition-all duration-200"
+      className="relative text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white transition-all duration-200 overflow-hidden"
       title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
     >
-      {theme === 'dark' ? (
-        <Sun className="h-[1.2rem] w-[1.2rem] text-amber-400 transition-all duration-300 rotate-0 scale-100" />
-      ) : (
-        <Moon className="h-[1.2rem] w-[1.2rem] text-emerald-600 transition-all duration-300 rotate-0 scale-100" />
-      )}
+      <span
+        key={theme}
+        className="flex items-center justify-center animate-in zoom-in-50 spin-in-[30deg] duration-300"
+      >
+        {theme === 'dark' ? (
+          <Sun className="h-[1.2rem] w-[1.2rem] text-amber-400" />
+        ) : (
+          <Moon className="h-[1.2rem] w-[1.2rem] text-emerald-600" />
+        )}
+      </span>
     </Button>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useStore } from '@/lib/store';
@@ -13,6 +13,20 @@ export default function Navbar() {
   const pathname = usePathname();
   const { currentUser, signOutUser } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+
+  // Close mobile menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    if (mobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mobileMenuOpen]);
 
   // If not logged in, don't show the main navbar
   if (!currentUser) return null;
@@ -23,7 +37,7 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="sticky top-0 z-40 w-full border-b border-zinc-200/50 dark:border-white/5 bg-white/70 dark:bg-zinc-950/40 backdrop-blur-xl transition-all duration-300">
+    <nav ref={navRef} className="sticky top-0 z-40 w-full border-b border-zinc-200/50 dark:border-white/5 bg-white/70 dark:bg-zinc-950/40 backdrop-blur-xl transition-all duration-300">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}

@@ -9,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sparkles, ArrowRight, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import ThemeToggle from '@/components/theme-toggle';
 
 export default function Login() {
   const router = useRouter();
   const { currentUser, signInMock, initialize } = useStore();
-  const [email, setEmail] = useState('alex@splitmate.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState(isMockMode ? 'alex@splitmate.com' : '');
+  const [password, setPassword] = useState(isMockMode ? 'password123' : '');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoadingSubmit, setIsLoadingSubmit] = useState(false);
 
@@ -52,7 +53,7 @@ export default function Login() {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      console.error(err);
+      // handle silently — error shown in UI
       setErrorMsg(err.message || 'Invalid email or password');
     } finally {
       setIsLoadingSubmit(false);
@@ -64,7 +65,31 @@ export default function Login() {
   };
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center min-h-[90vh] overflow-hidden bg-background px-4 py-16 font-sans text-foreground sm:px-6 lg:px-8">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-background font-sans text-foreground">
+      <title>Sign In | Splitmate</title>
+      {/* Public Navbar */}
+      <header className="sticky top-0 z-40 w-full border-b border-zinc-200/50 dark:border-white/5 bg-white/70 dark:bg-zinc-950/40 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <Link href="/" className="flex items-center gap-2 font-sans text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/20">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <span>split<span className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">mate</span></span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Link href="/register">
+                <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 text-sm font-semibold rounded-xl shadow-sm px-4">
+                  Get Started
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-4 py-16 sm:px-6 lg:px-8">
       <div className="relative z-10 w-full max-w-md space-y-8">
         {/* Header Hero */}
         <div className="flex flex-col items-center text-center space-y-3">
@@ -181,9 +206,9 @@ export default function Login() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

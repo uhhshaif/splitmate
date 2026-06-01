@@ -9,12 +9,35 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Plus, ArrowRight, X, AlertCircle, Sparkles } from 'lucide-react';
+import { Users, Plus, ArrowRight, X, AlertCircle, Sparkles, Check } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Groups() {
   const router = useRouter();
-  const { currentUser, groups, expenses, profiles, createGroup, isLoading } = useStore();
+  const { currentUser, groups, expenses, profiles, invitations, acceptInvitation, declineInvitation, createGroup, isLoading } = useStore();
+  const [actioningGroupId, setActioningGroupId] = useState<string | null>(null);
+
+  const handleAcceptInvite = async (groupId: string) => {
+    setActioningGroupId(groupId);
+    try {
+      await acceptInvitation(groupId);
+    } catch (err: any) {
+      // handle silently
+    } finally {
+      setActioningGroupId(null);
+    }
+  };
+
+  const handleDeclineInvite = async (groupId: string) => {
+    setActioningGroupId(groupId);
+    try {
+      await declineInvitation(groupId);
+    } catch (err: any) {
+      // handle silently
+    } finally {
+      setActioningGroupId(null);
+    }
+  };
 
   // Create Group Modal State
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +53,21 @@ export default function Groups() {
     }
   }, [currentUser, isLoading, router]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('create') === 'true') {
+        setIsOpen(true);
+        // Clean URL search params
+        const newUrl = window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+      }
+    }
+  }, []);
+
   if (isLoading || !currentUser) return null;
+
+  const userGroups = groups.filter(g => g.members.includes(currentUser.id) || g.created_by === currentUser.id);
 
   const handleAddEmailField = () => {
     setMemberEmails([...memberEmails, '']);
@@ -80,6 +117,7 @@ export default function Groups() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+      <title>Groups | Splitmate</title>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200/50 dark:border-zinc-800/60 pb-6">
         <div>
@@ -221,8 +259,57 @@ export default function Groups() {
         </Dialog>
       </div>
 
+      {/* Group Invitations Section */}
+      {invitations && invitations.length > 0 && (
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Pending Invitations ({invitations.length})
+          </h2>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {invitations.map((inv) => (
+              <Card key={inv.id} className="relative overflow-hidden border border-emerald-500/20 dark:border-emerald-500/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md text-foreground dark:text-white shadow-lg shadow-emerald-500/[0.02] rounded-3xl p-5 flex flex-col justify-between min-h-[160px] group transition-all duration-300 hover:border-emerald-500/30">
+                <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 to-teal-500" />
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors duration-200">{inv.group_name}</h4>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">
+                    Invited by <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{inv.invited_by_name}</span>
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-450 line-clamp-2 leading-relaxed min-h-[2rem]">
+                    {inv.group_description || 'No description provided.'}
+                  </p>
+                </div>
+                <div className="flex gap-2.5 pt-4 border-t border-zinc-100 dark:border-zinc-900/80 mt-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeclineInvite(inv.group_id)}
+                    disabled={actioningGroupId !== null}
+                    className="flex-1 text-xs font-bold text-rose-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-2xl py-5 h-10 border border-transparent hover:border-rose-500/20 transition-all duration-200"
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Decline
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAcceptInvite(inv.group_id)}
+                    disabled={actioningGroupId !== null}
+                    className="flex-1 text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-650 hover:to-teal-650 rounded-2xl py-5 h-10 shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    <Check className="h-3.5 w-3.5 mr-1" />
+                    Accept
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Groups List Grid */}
-      {groups.length === 0 ? (
+      {userGroups.length === 0 ? (
         <div className="flex flex-col items-center justify-center border border-dashed border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/5 backdrop-blur-md rounded-3xl p-16 text-center space-y-5">
           <div className="h-14 w-14 rounded-2xl bg-zinc-100 dark:bg-zinc-900/60 flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-400 dark:text-zinc-500">
             <Users className="h-6 w-6" />
@@ -239,7 +326,7 @@ export default function Groups() {
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {groups.map((group) => {
+          {userGroups.map((group) => {
             // Calculate balance for each group for the current user
             const groupExpenses = expenses.filter(e => e.group_id === group.id);
             let userNetBalance = 0;
@@ -320,7 +407,7 @@ export default function Groups() {
 
                   <Link href={`/groups/${group.id}`} className="block pt-1">
                     <Button variant="outline" className="w-full transition-all duration-300 border-zinc-200 dark:border-zinc-800/80 hover:bg-gradient-to-r hover:from-emerald-500 hover:to-teal-500 hover:border-transparent hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 py-5 rounded-2xl shadow-sm hover:shadow-emerald-500/10">
-                      Enter Directory
+                      Open Group
                       <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                     </Button>
                   </Link>

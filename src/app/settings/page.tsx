@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
   ArrowLeft, 
   User, 
@@ -28,18 +29,12 @@ import {
   Wallet,
   Coins,
   Loader2,
-  Plus
+  Plus,
+  QrCode,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 
-const PRESET_AVATARS = [
-  { name: 'Teal Minimalist', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face' },
-  { name: 'Warm Minimalist', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face' },
-  { name: 'Cool Slate', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face' },
-  { name: 'Forest Green', url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face' },
-  { name: 'Dusk Bronze', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face' },
-  { name: 'Ocean Mist', url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face' }
-];
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -60,6 +55,8 @@ export default function SettingsPage() {
   const [maeAccount, setMaeAccount] = useState('');
   const [paypalEmail, setPaypalEmail] = useState('');
   const [venmoHandle, setVenmoHandle] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [isUploadingQr, setIsUploadingQr] = useState(false);
 
   // Preferences State
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('dark');
@@ -78,6 +75,8 @@ export default function SettingsPage() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isResetDataOpen, setIsResetDataOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !currentUser) {
@@ -94,6 +93,7 @@ export default function SettingsPage() {
       setMaeAccount(currentUser.mae_account || '');
       setPaypalEmail(currentUser.paypal_email || '');
       setVenmoHandle(currentUser.venmo_handle || '');
+      setQrCodeUrl(currentUser.qr_code_url || '');
       
       setDefaultCurrency(currentUser.default_currency || 'RM');
     }
@@ -160,7 +160,8 @@ export default function SettingsPage() {
         mae_account: maeAccount.trim(),
         paypal_email: paypalEmail.trim().toLowerCase(),
         venmo_handle: venmoHandle.trim(),
-        default_currency: defaultCurrency
+        default_currency: defaultCurrency,
+        qr_code_url: qrCodeUrl
       });
 
       // Handle Supabase email confirmation text
@@ -219,11 +220,63 @@ export default function SettingsPage() {
         setSuccessMsg('Avatar uploaded successfully! Save changes to apply.');
       }
     } catch (err: any) {
-      console.error(err);
+      // console.error(err);
       setErrorMsg(err.message || 'Failed to upload photo');
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleQrCodeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingQr(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      if (isMockMode) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setQrCodeUrl(event.target.result as string);
+            setSuccessMsg('Payment QR code loaded locally!');
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentUser.id}-qrcode-${Date.now()}.${fileExt}`;
+        const filePath = `${currentUser.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+        if (uploadError) {
+          throw new Error('Supabase Storage: ' + uploadError.message + '. Please ensure the "avatars" bucket is created and set to public in Supabase Storage.');
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        setQrCodeUrl(publicUrl);
+        setSuccessMsg('Payment QR code uploaded successfully! Save changes to apply.');
+      }
+    } catch (err: any) {
+      // console.error(err);
+      setErrorMsg(err.message || 'Failed to upload QR Code');
+    } finally {
+      setIsUploadingQr(false);
+    }
+  };
+
+  const handleRemoveQrCode = () => {
+    setQrCodeUrl('');
+    setSuccessMsg('Payment QR code removed! Save changes to apply.');
+    setTimeout(() => setSuccessMsg(null), 3000);
   };
 
   const handlePasswordChange = async () => {
@@ -252,20 +305,14 @@ export default function SettingsPage() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      console.error(err);
+      // console.error(err);
       setPasswordErrorMsg(err.message || 'Failed to update password');
     } finally {
       setIsUpdatingPassword(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    const confirmMessage = isMockMode
-      ? 'Are you sure you want to permanently delete your offline user profile?'
-      : 'Are you sure you want to delete your account? This will permanently delete your profile, group memberships, and sign you out.';
-    
-    if (!confirm(confirmMessage)) return;
-
+  const executeDeleteAccount = async () => {
     setIsDeletingAccount(true);
     try {
       if (isMockMode) {
@@ -282,26 +329,26 @@ export default function SettingsPage() {
         window.location.href = '/login';
       }
     } catch (err: any) {
-      console.error(err);
+      // console.error(err);
       setErrorMsg(err.message || 'Failed to delete account. Try again.');
+      setIsDeleteAccountOpen(false);
     } finally {
       setIsDeletingAccount(false);
     }
   };
 
-  const handleResetData = () => {
-    if (confirm('Are you sure you want to clear all offline Splitmate data? This will restore original defaults and log you out.')) {
-      localStorage.removeItem('splitmate_user');
-      localStorage.removeItem('splitmate_profiles');
-      localStorage.removeItem('splitmate_groups');
-      localStorage.removeItem('splitmate_expenses');
-      localStorage.removeItem('splitmate_trips');
-      window.location.href = '/login';
-    }
+  const executeResetData = () => {
+    localStorage.removeItem('splitmate_user');
+    localStorage.removeItem('splitmate_profiles');
+    localStorage.removeItem('splitmate_groups');
+    localStorage.removeItem('splitmate_expenses');
+    localStorage.removeItem('splitmate_trips');
+    window.location.href = '/login';
   };
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      <title>Settings | Splitmate</title>
       {/* Back button */}
       <div>
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition duration-200">
@@ -345,20 +392,13 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-          <TabsList className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 p-1 w-full justify-start grid grid-cols-4 sm:flex sm:w-auto h-auto rounded-xl">
+          <TabsList className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 p-1 w-full justify-start grid grid-cols-3 sm:flex sm:w-auto h-auto rounded-xl">
             <TabsTrigger 
               value="profile" 
               className="text-xs font-bold py-2 px-4 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400 transition"
             >
               <User className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
               Account
-            </TabsTrigger>
-            <TabsTrigger 
-              value="payment" 
-              className="text-xs font-bold py-2 px-4 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400 transition"
-            >
-              <CreditCard className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-              Payments
             </TabsTrigger>
             <TabsTrigger 
               value="preferences" 
@@ -388,69 +428,51 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 
-                {/* Custom Avatar Selector (Grid) */}
+                {/* Avatar Selector */}
                 <div className="space-y-3 pb-6 border-b border-zinc-100 dark:border-zinc-800">
-                  <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Choose Profile Avatar</Label>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <Avatar className="h-16 w-16 ring-2 ring-emerald-500/25 shrink-0">
-                      <AvatarImage src={avatarUrl} alt={displayName} />
-                      <AvatarFallback className="bg-emerald-950 text-base font-bold text-emerald-300">
-                        {displayName ? displayName.charAt(0).toUpperCase() : 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex flex-wrap gap-2 items-center max-w-sm">
-                      {PRESET_AVATARS.map((preset) => {
-                        const isSelected = avatarUrl === preset.url;
-                        return (
-                          <button
-                            key={preset.name}
-                            type="button"
-                            onClick={() => setAvatarUrl(preset.url)}
-                            className={`relative h-10 w-10 rounded-full overflow-hidden border-2 transition duration-200 hover:scale-105 ${
-                              isSelected 
-                                ? 'border-emerald-500 ring-2 ring-emerald-500/10' 
-                                : 'border-transparent opacity-70 hover:opacity-100'
-                            }`}
-                          >
-                            <img src={preset.url} alt={preset.name} className="h-full w-full object-cover" />
-                          </button>
-                        );
-                      })}
-
-                      <Label
-                        htmlFor="avatar-file-upload"
-                        className="relative flex h-10 w-10 rounded-full items-center justify-center border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-emerald-500 dark:hover:border-emerald-500 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 transition duration-200 shrink-0"
-                        title="Upload profile photo"
-                      >
-                        {isUploading ? (
-                          <Loader2 className="h-4 w-4 text-emerald-500 animate-spin" />
-                        ) : (
-                          <Plus className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                        )}
-                        <input
-                          id="avatar-file-upload"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleAvatarFileUpload}
-                          disabled={isUploading}
-                        />
-                      </Label>
+                  <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Profile Avatar</Label>
+                  <div className="flex items-center gap-4">
+                    {/* Current avatar preview */}
+                    <div className="relative h-16 w-16 shrink-0 rounded-full overflow-hidden">
+                      <Avatar className="h-full w-full ring-2 ring-emerald-500/25">
+                        <AvatarImage src={avatarUrl} alt={displayName} />
+                        <AvatarFallback className="bg-emerald-950 text-base font-bold text-emerald-300">
+                          {displayName ? displayName.charAt(0).toUpperCase() : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center rounded-full z-10">
+                          <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+                        </div>
+                      )}
                     </div>
+
+                    {/* Upload button */}
+                    <Label
+                      htmlFor="avatar-file-upload"
+                      className="relative flex h-12 w-12 rounded-full items-center justify-center border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-emerald-500 dark:hover:border-emerald-500 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 transition duration-200 shrink-0"
+                      title="Upload profile photo"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+                      ) : (
+                        <Plus className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                      )}
+                      <input
+                        id="avatar-file-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarFileUpload}
+                        disabled={isUploading}
+                      />
+                    </Label>
+
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {isUploading ? 'Uploading...' : 'Click + to upload a photo'}
+                    </span>
                   </div>
 
-                  <div className="space-y-1.5 pt-2">
-                    <Label htmlFor="customAvatarUrl" className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">Or Paste Custom Avatar Image URL</Label>
-                    <Input
-                      id="customAvatarUrl"
-                      type="url"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder="https://example.com/your-image.jpg"
-                      className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500 text-xs"
-                    />
-                  </div>
                 </div>
 
                 <div className="grid gap-6 sm:grid-cols-2">
@@ -571,122 +593,6 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* TAB 2: Payment Details */}
-          <TabsContent value="payment" className="space-y-6">
-            <Card className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/40 text-foreground dark:text-white shadow-sm rounded-2xl">
-              <CardHeader>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <CreditCard className="h-4.5 w-4.5 text-emerald-500" />
-                  Settlement & Payment Preferences
-                </CardTitle>
-                <CardDescription className="text-zinc-500 dark:text-zinc-400">
-                  Configure your payment handles. These will be shown to group members when they settle debts with you.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                
-                {/* DuitNow config */}
-                <div className="border-b border-zinc-100 dark:border-zinc-800 pb-6 space-y-4">
-                  <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
-                    <span className="flex h-5 w-5 items-center justify-center rounded bg-pink-600 font-black text-[9px] text-white">DN</span>
-                    DuitNow Preferences
-                  </h3>
-                  
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="duitnowType" className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">DuitNow ID Type</Label>
-                      <Select 
-                        value={duitnowType} 
-                        onValueChange={(val) => setDuitnowType(val || 'phone')}
-                      >
-                        <SelectTrigger className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500">
-                          <SelectValue placeholder="Select ID Type" />
-                        </SelectTrigger>
-                        <SelectContent className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground">
-                          <SelectItem value="phone">Mobile Phone Number</SelectItem>
-                          <SelectItem value="nric">NRIC / IC Number</SelectItem>
-                          <SelectItem value="passport">Passport Number</SelectItem>
-                          <SelectItem value="business">Business Registration Number</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="duitnowId" className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">DuitNow ID / Handle</Label>
-                      <Input
-                        id="duitnowId"
-                        value={duitnowId}
-                        onChange={(e) => setDuitnowId(e.target.value)}
-                        placeholder={duitnowType === 'phone' ? 'e.g. +6012-3456789' : 'e.g. 960101-14-1234'}
-                        className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* E-Wallets and Global Payment */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-emerald-500" />
-                    E-Wallets & Alternative Systems
-                  </h3>
-                  
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    {/* MAE */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="maeAccount" className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">MAE (Maybank) Account Number</Label>
-                      <Input
-                        id="maeAccount"
-                        value={maeAccount}
-                        onChange={(e) => setMaeAccount(e.target.value)}
-                        placeholder="e.g. 164012345678"
-                        className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500"
-                      />
-                    </div>
-
-                    {/* Touch n Go */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="tngPhone" className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Touch 'n Go Phone Number</Label>
-                      <Input
-                        id="tngPhone"
-                        value={tngPhone}
-                        onChange={(e) => setTngPhone(e.target.value)}
-                        placeholder="e.g. +6012-3456789"
-                        className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500"
-                      />
-                    </div>
-
-                    {/* PayPal */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="paypalEmail" className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">PayPal Email Address</Label>
-                      <Input
-                        id="paypalEmail"
-                        type="email"
-                        value={paypalEmail}
-                        onChange={(e) => setPaypalEmail(e.target.value)}
-                        placeholder="e.g. your-paypal@domain.com"
-                        className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500"
-                      />
-                    </div>
-
-                    {/* Venmo */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="venmoHandle" className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Venmo Username</Label>
-                      <Input
-                        id="venmoHandle"
-                        value={venmoHandle}
-                        onChange={(e) => setVenmoHandle(e.target.value)}
-                        placeholder="e.g. @your-handle"
-                        className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-foreground focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           {/* TAB 3: App Preferences */}
           <TabsContent value="preferences" className="space-y-6">
             <Card className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/40 text-foreground dark:text-white shadow-sm rounded-2xl">
@@ -781,7 +687,7 @@ export default function SettingsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleResetData}
+                    onClick={() => setIsResetDataOpen(true)}
                     className="border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold shrink-0 self-start sm:self-center"
                   >
                     Clear Database Cache
@@ -798,7 +704,7 @@ export default function SettingsPage() {
                   </div>
                   <Button
                     type="button"
-                    onClick={handleDeleteAccount}
+                    onClick={() => setIsDeleteAccountOpen(true)}
                     disabled={isDeletingAccount}
                     className="bg-rose-600 hover:bg-rose-500 text-white font-bold shrink-0 self-start sm:self-center text-xs px-4 py-2 rounded-lg"
                   >
@@ -854,6 +760,82 @@ export default function SettingsPage() {
           </Button>
         </div>
       </form>
+
+      {/* Reset Data Confirmation Dialog */}
+      <Dialog open={isResetDataOpen} onOpenChange={setIsResetDataOpen}>
+        <DialogContent className="max-w-md border border-zinc-200 dark:border-white/10 bg-background text-foreground overflow-hidden p-6 rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Reset Offline Data?
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs pt-1.5 leading-relaxed">
+              Are you sure you want to clear all offline Splitmate data? This will restore original defaults and log you out. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsResetDataOpen(false)}
+              className="text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={executeResetData}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-md shadow-rose-500/10 flex items-center gap-2"
+            >
+              Reset Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog open={isDeleteAccountOpen} onOpenChange={setIsDeleteAccountOpen}>
+        <DialogContent className="max-w-md border border-zinc-200 dark:border-white/10 bg-background text-foreground overflow-hidden p-6 rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Delete Account?
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs pt-1.5 leading-relaxed">
+              {isMockMode
+                ? 'Are you sure you want to permanently delete your offline user profile?'
+                : 'Are you sure you want to delete your account? This will permanently delete your profile, group memberships, and sign you out. This action is irreversible.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsDeleteAccountOpen(false)}
+              className="text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
+              disabled={isDeletingAccount}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={executeDeleteAccount}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-md shadow-rose-500/10 flex items-center gap-2"
+              disabled={isDeletingAccount}
+            >
+              {isDeletingAccount ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Account'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export async function POST(request: Request) {
   try {
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
       splits,
       splitType = 'equal',
       receiptUrl,
+      items,
       createdBy
     } = body;
 
@@ -35,32 +37,45 @@ export async function POST(request: Request) {
       });
     }
 
-    const authHeader = request.headers.get('Authorization') || '';
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
+    // Use service role key to bypass RLS for server-side operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
+
 
     // 1. Create the expense row
-    const { data: newExpense, error: expErr } = await supabase
+    const insertData: any = {
+      group_id: groupId,
+      trip_id: tripId || null,
+      title,
+      amount,
+      date: date || new Date().toISOString().split('T')[0],
+      paid_by: paidBy,
+      category: category || 'general',
+      split_type: splitType,
+      receipt_url: receiptUrl || null,
+      created_by: createdBy || paidBy
+    };
+
+    if (items) {
+      insertData.items = items;
+    }
+
+    let { data: newExpense, error: expErr } = await supabase
       .from('expenses')
-      .insert([{
-        group_id: groupId,
-        trip_id: tripId || null,
-        title,
-        amount,
-        date: date || new Date().toISOString().split('T')[0],
-        paid_by: paidBy,
-        category: category || 'general',
-        split_type: splitType,
-        receipt_url: receiptUrl || null,
-        created_by: createdBy || paidBy
-      }])
+      .insert([insertData])
       .select()
       .single();
+
+    if (expErr && (expErr.message?.includes('items') || expErr.message?.includes('schema cache'))) {
+      console.warn('Supabase DB: "items" column does not exist or not in cache. Retrying insertion without "items" column...');
+      delete insertData.items;
+      const retryResult = await supabase
+        .from('expenses')
+        .insert([insertData])
+        .select()
+        .single();
+      newExpense = retryResult.data;
+      expErr = retryResult.error;
+    }
 
     if (expErr || !newExpense) {
       console.error('Error inserting expense:', expErr);

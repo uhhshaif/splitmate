@@ -16,6 +16,7 @@ import {
   Zap,
   UserCheck
 } from 'lucide-react';
+import ThemeToggle from '@/components/theme-toggle';
 
 export default function Home() {
   const router = useRouter();
@@ -29,8 +30,39 @@ export default function Home() {
   }, [currentUser, router]);
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-background px-4 py-16 font-sans text-foreground sm:px-6 lg:px-8">
-      <div className="relative z-10 w-full max-w-6xl space-y-16">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-background font-sans text-foreground">
+      {/* Public Navbar for logged-out users */}
+      <header className="sticky top-0 z-40 w-full border-b border-zinc-200/50 dark:border-white/5 bg-white/70 dark:bg-zinc-950/40 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2 font-sans text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/20">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <span>split<span className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">mate</span></span>
+            </Link>
+            {/* Nav actions */}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Link href="/login">
+                <Button variant="ghost" className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100/60 dark:hover:bg-white/5 rounded-xl">
+                  Sign In
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 text-sm font-semibold rounded-xl shadow-sm px-4">
+                  Get Started
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Page content */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
+        <div className="relative z-10 w-full max-w-6xl space-y-16">
         
         {/* Two-Column Hero section */}
         <div className="grid gap-12 lg:grid-cols-12 lg:items-center lg:gap-8">
@@ -71,16 +103,16 @@ export default function Home() {
             {/* Micro stats banner */}
             <div className="grid grid-cols-3 gap-4 border-t border-zinc-200 dark:border-white/5 pt-8 mt-8">
               <div>
-                <p className="text-2xl font-black text-zinc-900 dark:text-white">RM 0.00</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Group debt simplification</p>
+                <p className="text-2xl font-black text-zinc-900 dark:text-white">Smart</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Debt minimization</p>
               </div>
               <div>
-                <p className="text-2xl font-black text-zinc-900 dark:text-white">100%</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Automatic OCR accuracy</p>
+                <p className="text-2xl font-black text-zinc-900 dark:text-white">AI</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Receipt scanning</p>
               </div>
               <div>
-                <p className="text-2xl font-black text-zinc-900 dark:text-white">Instant</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Cloud database sync</p>
+                <p className="text-2xl font-black text-zinc-900 dark:text-white">Real-time</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Balance sync</p>
               </div>
             </div>
           </div>
@@ -157,7 +189,7 @@ export default function Home() {
                       {/* Optimized Flow */}
                       <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-xs animate-pulse">
                         <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
-                          <div className="h-5 w-5 rounded-full bg-emerald-500 text-white text-[10px] flex items-center justify-center font-bold">âœ“</div>
+                          <div className="h-5 w-5 rounded-full bg-emerald-500 text-white text-[10px] flex items-center justify-center font-bold">✓</div>
                           <span>Alex pays Marcus</span>
                         </div>
                         <span className="font-black text-emerald-600 dark:text-emerald-400">RM 50.00</span>
@@ -232,6 +264,7 @@ export default function Home() {
           </div>
         </div>
 
+        </div>
       </div>
     </div>
   );

@@ -7,8 +7,17 @@ interface Member {
 }
 
 export async function POST(request: Request) {
+  let text = '';
+  let members: Member[] = [];
+  let currentUserId = '';
+  let dateContext = '';
+
   try {
-    const { text, members, currentUserId, dateContext } = await request.json();
+    const body = await request.json();
+    text = body.text;
+    members = body.members || [];
+    currentUserId = body.currentUserId;
+    dateContext = body.dateContext;
 
     if (!text) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 });
@@ -185,7 +194,7 @@ Example output format:
     if (geminiApiKey && !geminiApiKey.startsWith('your_')) {
       let response;
       try {
-        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`, {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -205,13 +214,13 @@ Example output format:
           })
         });
       } catch (err) {
-        console.warn('Gemini flash-latest fetch failed, attempting fallback...', err);
+        console.warn('Gemini 2.5-flash fetch failed, attempting fallback...', err);
       }
 
-      // Fallback to gemini-2.5-flash if the primary request failed or returned an error status (like 503)
+      // Fallback to gemini-3.5-flash if the primary request failed or returned an error status (like 503)
       if (!response || !response.ok) {
-        console.warn('Gemini flash-latest unavailable or returned error. Retrying with gemini-2.5-flash...');
-        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+        console.warn('Gemini 2.5-flash unavailable or returned error. Retrying with gemini-3.5-flash...');
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -292,8 +301,125 @@ Example output format:
     }
 
   } catch (error: any) {
-    console.error('API /api/expenses/ai-parse error:', error);
-    return NextResponse.json({ error: error.message || 'Server error parsing NLP text' }, { status: 500 });
+    console.warn('[Fallback] Gemini/Claude API failed or returned error. Running local heuristic parser fallback. Error details:', error.message);
+    
+    try {
+      const lowerText = text.toLowerCase();
+      const today = dateContext || new Date().toISOString().split('T')[0];
+      
+      let amount = 0.0;
+      let title = 'Expense';
+      let paidBy = currentUserId;
+      let category = 'general';
+      let splitWithIds: string[] = members.map((m: Member) => m.id);
+      
+      const rmRegex = /(?:rm|rm\s*|ringgit\s*)(\d+(?:\.\d+)?)/i;
+      const amountRegex = /(\d+(?:\.\d+)?)\s*(?:rm|ringgit)/i;
+      
+      let amountMatch = lowerText.match(rmRegex) || lowerText.match(amountRegex);
+      if (amountMatch) {
+        amount = parseFloat(amountMatch[1]);
+      } else {
+        const numberRegex = /\b(\d+(?:\.\d+)?)\b/;
+        const numberMatch = lowerText.match(numberRegex);
+        if (numberMatch) amount = parseFloat(numberMatch[1]);
+      }
+
+      const forRegex = /\b(?:for|buying|at|on)\s+([^,.\n]+)/i;
+      const forMatch = text.match(forRegex);
+      if (forMatch) {
+        title = forMatch[1].trim();
+      } else {
+        const paidWords = text.split(/\bpaid\b/i);
+        if (paidWords.length > 1 && paidWords[1].trim()) {
+          title = paidWords[1].replace(rmRegex, '').replace(/\d+/g, '').replace(/\bfor\b/i, '').trim();
+        }
+      }
+
+      title = title
+        .replace(/\b(?:me|and|split|equally|everyone|all|shared)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!title) title = 'Shared Expense';
+      title = title.charAt(0).toUpperCase() + title.slice(1);
+
+      let payerFound = false;
+      for (const member of members) {
+        const nameParts = member.display_name.toLowerCase().split(' ');
+        for (const part of nameParts) {
+          if (part.length > 2 && lowerText.startsWith(part)) {
+            paidBy = member.id;
+            payerFound = true;
+            break;
+          }
+        }
+        if (payerFound) break;
+      }
+
+      if (!payerFound && (lowerText.includes('i paid') || lowerText.includes('me paid') || lowerText.startsWith('i ') || lowerText.startsWith('me '))) {
+        paidBy = currentUserId;
+      }
+
+      const mentionedMembers: string[] = [];
+      members.forEach((m: Member) => {
+        const displayNameLower = m.display_name.toLowerCase();
+        const firstName = displayNameLower.split(' ')[0];
+        if (lowerText.includes(displayNameLower) || (firstName.length > 2 && lowerText.includes(firstName))) {
+          mentionedMembers.push(m.id);
+        }
+      });
+
+      if (lowerText.includes('me') || lowerText.includes(' i ') || lowerText.includes('myself')) {
+        if (!mentionedMembers.includes(currentUserId)) {
+          mentionedMembers.push(currentUserId);
+        }
+      }
+
+      if (mentionedMembers.length > 0) {
+        splitWithIds = Array.from(new Set(mentionedMembers));
+      }
+
+      if (lowerText.includes('dinner') || lowerText.includes('lunch') || lowerText.includes('food') || lowerText.includes('makan') || lowerText.includes('drink') || lowerText.includes('starbucks') || lowerText.includes('mcd') || lowerText.includes('kfc')) {
+        category = 'food';
+      } else if (lowerText.includes('taxi') || lowerText.includes('grab') || lowerText.includes('fuel') || lowerText.includes('petrol') || lowerText.includes('bus') || lowerText.includes('train')) {
+        category = 'transport';
+      } else if (lowerText.includes('rent') || lowerText.includes('room') || lowerText.includes('deposit')) {
+        category = 'housing';
+      } else if (lowerText.includes('bill') || lowerText.includes('water') || lowerText.includes('electric') || lowerText.includes('wifi') || lowerText.includes('internet')) {
+        category = 'utilities';
+      } else if (lowerText.includes('hotel') || lowerText.includes('stay') || lowerText.includes('airbnb') || lowerText.includes('hostel')) {
+        category = 'lodging';
+      } else if (lowerText.includes('movie') || lowerText.includes('cinema') || lowerText.includes('concert') || lowerText.includes('karaoke')) {
+        category = 'entertainment';
+      }
+
+      const share = amount / splitWithIds.length;
+      const splits = splitWithIds.map(id => ({
+        user_id: id,
+        amount_owed: Math.round(share * 100) / 100
+      }));
+
+      if (splits.length > 0) {
+        const sum = splits.reduce((acc, s) => acc + s.amount_owed, 0);
+        const diff = amount - sum;
+        if (Math.abs(diff) > 0.01) {
+          splits[splits.length - 1].amount_owed = Math.round((splits[splits.length - 1].amount_owed + diff) * 100) / 100;
+        }
+      }
+
+      return NextResponse.json({
+        title,
+        amount,
+        paid_by: paidBy,
+        splits,
+        category,
+        date: today,
+        success: true,
+        message: 'Locally parsed description (API Fallback).'
+      });
+    } catch (fallbackErr: any) {
+      return NextResponse.json({ error: 'Server error parsing NLP text' }, { status: 500 });
+    }
   }
 }
 

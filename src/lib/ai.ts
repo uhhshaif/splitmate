@@ -9,6 +9,8 @@ export interface ScannedReceiptResult {
   success: boolean;
   message?: string;
   items?: { name: string; amount: number }[];
+  taxPercent?: number;
+  chargePercent?: number;
 }
 
 export async function scanReceiptWithAI(base64Image: string, fileName?: string): Promise<ScannedReceiptResult> {

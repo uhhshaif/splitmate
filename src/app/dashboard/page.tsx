@@ -16,9 +16,15 @@ import {
   TrendingUp,
   ChevronRight,
   Sparkles,
-  ShoppingBag
+  ShoppingBag,
+  Check,
+  X,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const SpendingChart = dynamic(() => import('@/components/dashboard/spending-chart'), { ssr: false });
 
 const CATEGORIES = [
   { value: 'food', label: 'Food & Dining' },
@@ -32,7 +38,53 @@ const CATEGORIES = [
 
 export default function Dashboard() {
   const router = useRouter();
-  const { currentUser, groups, expenses, profiles, isLoading } = useStore();
+  const { currentUser, groups, expenses, profiles, invitations, settlements, acceptInvitation, declineInvitation, confirmSettlement, declineSettlement, isLoading } = useStore();
+  const [actioningGroupId, setActioningGroupId] = useState<string | null>(null);
+  const [actioningSettlementId, setActioningSettlementId] = useState<string | null>(null);
+
+  const handleConfirmSettlement = async (settlementId: string) => {
+    setActioningSettlementId(settlementId);
+    try {
+      await confirmSettlement(settlementId);
+    } catch (err: any) {
+      // handle silently
+    } finally {
+      setActioningSettlementId(null);
+    }
+  };
+
+  const handleDeclineSettlement = async (settlementId: string) => {
+    setActioningSettlementId(settlementId);
+    try {
+      await declineSettlement(settlementId);
+    } catch (err: any) {
+      // handle silently
+    } finally {
+      setActioningSettlementId(null);
+    }
+  };
+
+  const handleAcceptInvite = async (groupId: string) => {
+    setActioningGroupId(groupId);
+    try {
+      await acceptInvitation(groupId);
+    } catch (err: any) {
+      // handle silently
+    } finally {
+      setActioningGroupId(null);
+    }
+  };
+
+  const handleDeclineInvite = async (groupId: string) => {
+    setActioningGroupId(groupId);
+    try {
+      await declineInvitation(groupId);
+    } catch (err: any) {
+      // handle silently
+    } finally {
+      setActioningGroupId(null);
+    }
+  };
 
   // Redirect to landing if not logged in
   useEffect(() => {
@@ -51,6 +103,8 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const userGroups = groups.filter(g => g.members.includes(currentUser.id) || g.created_by === currentUser.id);
 
   // 1. Calculate overall balance stats for the current user across all groups
   let totalOwed = 0; // People owe you (positive value)
@@ -122,6 +176,10 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
+  const pendingApprovals = (settlements || []).filter(
+    (s) => s.to_user === currentUser?.id && s.settled === false
+  );
+
   const getCategoryColor = (cat: string) => {
     switch (cat) {
       case 'food': return 'bg-orange-500/20 text-orange-400 border-orange-500/15';
@@ -136,6 +194,7 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+      <title>Dashboard | Splitmate</title>
       {/* Welcome Banner */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -239,7 +298,7 @@ export default function Dashboard() {
               </Link>
             </CardHeader>
             <CardContent className="space-y-4">
-              {groups.length === 0 ? (
+              {userGroups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 text-center space-y-3 bg-zinc-50/50 dark:bg-zinc-900/10">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-zinc-400 dark:text-zinc-500">
                     <Users className="h-5 w-5" />
@@ -256,7 +315,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-                  {groups.slice(0, 4).map((group) => {
+                  {userGroups.slice(0, 4).map((group) => {
                     const groupExpenses = expenses.filter(e => e.group_id === group.id);
                     let userNetBalance = 0;
                     groupExpenses.forEach(e => {
@@ -307,7 +366,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {recentExpenses.length === 0 ? (
-                <div className="text-center py-8 text-zinc-505 text-sm italic font-medium">No expenses added yet.</div>
+                <div className="text-center py-8 text-zinc-500 text-sm italic font-medium">No expenses added yet.</div>
               ) : (
                 <div className="space-y-3.5">
                   {recentExpenses.map((exp) => {
@@ -346,6 +405,177 @@ export default function Dashboard() {
 
         {/* Right Column */}
         <div className="space-y-6">
+          {/* Group Invitations Card */}
+          <Card className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950/30 text-foreground dark:text-white shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <span className="h-4 w-1 rounded-full bg-emerald-500 shrink-0" />
+                  Group Invitations
+                </CardTitle>
+                <CardDescription className="text-zinc-500 dark:text-zinc-400 text-xs">
+                  Respond to pending workspace invites.
+                </CardDescription>
+              </div>
+              {invitations && invitations.length > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-[10px] font-black text-emerald-600 dark:text-emerald-400 animate-pulse">
+                  {invitations.length}
+                </span>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!invitations || invitations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 text-center space-y-2 bg-zinc-50/10 dark:bg-zinc-900/10 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500">
+                    <Check className="h-4.5 w-4.5 text-zinc-400 dark:text-zinc-505" />
+                  </div>
+                  <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">No pending invitations</p>
+                </div>
+              ) : (
+                <div className="space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
+                  {invitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/30 p-4 space-y-2 hover:border-emerald-500/15 transition duration-205"
+                    >
+                      <div>
+                        <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">{inv.group_name}</h4>
+                        <p className="text-[9px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mt-0.5">
+                          From <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{inv.invited_by_name}</span>
+                        </p>
+                        {inv.group_description && (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-450 line-clamp-2 mt-1.5 leading-relaxed">
+                            {inv.group_description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 pt-2.5 border-t border-zinc-100 dark:border-zinc-900/80">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeclineInvite(inv.group_id)}
+                          disabled={actioningGroupId !== null}
+                          className="flex-1 text-[11px] font-bold text-rose-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl h-8 transition-colors duration-200"
+                        >
+                          {actioningGroupId === inv.group_id ? (
+                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          ) : (
+                            <X className="h-3 w-3 mr-1" />
+                          )}
+                          Decline
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleAcceptInvite(inv.group_id)}
+                          disabled={actioningGroupId !== null}
+                          className="flex-1 text-[11px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-650 rounded-xl h-8 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
+                        >
+                          {actioningGroupId === inv.group_id ? (
+                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          ) : (
+                            <Check className="h-3 w-3 mr-1" />
+                          )}
+                          Accept
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Settlement Approvals Card */}
+          <Card className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950/30 text-foreground dark:text-white shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <span className="h-4 w-1 rounded-full bg-emerald-500 shrink-0" />
+                  Settlement Approvals
+                </CardTitle>
+                <CardDescription className="text-zinc-500 dark:text-zinc-400 text-xs">
+                  Approve or decline recorded payments to you.
+                </CardDescription>
+              </div>
+              {pendingApprovals.length > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-[10px] font-black text-emerald-600 dark:text-emerald-400 animate-pulse">
+                  {pendingApprovals.length}
+                </span>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {pendingApprovals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 px-4 text-center space-y-3 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-2xl border border-emerald-500/10 dark:border-emerald-500/10">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 animate-pulse">
+                    <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-zinc-850 dark:text-zinc-200">You're all settled!</p>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 max-w-[200px] mx-auto leading-relaxed">
+                      No pending settlements require your approval.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
+                  {pendingApprovals.map((settlement) => {
+                    const payer = profiles[settlement.from_user];
+                    const activeGroup = groups.find((g) => g.id === settlement.group_id);
+                    return (
+                      <div
+                        key={settlement.id}
+                        className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/30 p-4 space-y-2 hover:border-emerald-500/15 transition duration-205"
+                      >
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
+                              {payer?.display_name || 'Someone'}
+                            </h4>
+                            <span className="font-extrabold font-mono text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg shrink-0">
+                              RM {settlement.amount.toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="text-[9px] text-zinc-500 dark:text-zinc-450 font-bold uppercase tracking-wider mt-1">
+                            In group: <span className="text-zinc-700 dark:text-zinc-300 font-extrabold">{activeGroup?.name || 'Unknown'}</span>
+                          </p>
+                        </div>
+                        <div className="flex gap-2 pt-2.5 border-t border-zinc-100 dark:border-zinc-900/80">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeclineSettlement(settlement.id)}
+                            disabled={actioningSettlementId !== null}
+                            className="flex-1 text-[11px] font-bold text-rose-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl h-8 transition-colors duration-200"
+                          >
+                            {actioningSettlementId === settlement.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <X className="h-3 w-3 mr-1" />
+                            )}
+                            Decline
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleConfirmSettlement(settlement.id)}
+                            disabled={actioningSettlementId !== null}
+                            className="flex-1 text-[11px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-650 rounded-xl h-8 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
+                          >
+                            {actioningSettlementId === settlement.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <Check className="h-3 w-3 mr-1" />
+                            )}
+                            Approve
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Category Spending Progress Bars */}
           <Card className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950/30 text-foreground dark:text-white shadow-sm rounded-2xl">
             <CardHeader className="pb-3">
@@ -357,32 +587,11 @@ export default function Dashboard() {
                 Your personal shares by categories.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {totalSpending === 0 ? (
-                <div className="text-center py-6 text-zinc-505 text-sm italic font-medium">No personal spending logged.</div>
-              ) : (
-                Object.entries(categoryTotals)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([cat, amt]) => {
-                    const percentage = (amt / totalSpending) * 100;
-                    const catInfo = CATEGORIES.find((c) => c.value === cat) || { label: 'General' };
-
-                    return (
-                      <div key={cat} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs font-semibold">
-                          <span className="text-zinc-650 dark:text-zinc-350 capitalize">{catInfo.label}</span>
-                          <span className="text-zinc-500 dark:text-zinc-400 font-mono text-[11px] font-bold">RM {amt.toFixed(2)} ({percentage.toFixed(0)}%)</span>
-                        </div>
-                        <div className="h-2 w-full bg-zinc-150 dark:bg-zinc-900 rounded-full overflow-hidden border border-zinc-200/20">
-                          <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-              )}
+            <CardContent>
+              <SpendingChart
+                categoryTotals={categoryTotals}
+                totalSpending={totalSpending}
+              />
             </CardContent>
           </Card>
 
@@ -396,10 +605,18 @@ export default function Dashboard() {
               <CardDescription className="text-zinc-500 dark:text-zinc-400 text-xs">Your net balance in each group.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {groups.length === 0 ? (
-                <div className="text-center py-6 text-zinc-505 text-sm italic font-medium">No groups found.</div>
-              ) : (
-                groups.slice(0, 4).map((group) => {
+                {userGroups.length === 0 ? (
+                  <div className="text-center py-8 space-y-4">
+                    <p className="text-zinc-500 text-xs italic font-medium">No groups found.</p>
+                    <Link href="/groups?create=true" className="inline-block">
+                      <Button size="sm" className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold rounded-xl text-[11px] h-9 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition duration-200">
+                        <Plus className="h-3.5 w-3.5 mr-1 shrink-0" />
+                        Create or Join a Group
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  userGroups.slice(0, 4).map((group) => {
                   const groupExpenses = expenses.filter(e => e.group_id === group.id);
                   let userNetBalance = 0;
                   groupExpenses.forEach(e => {
@@ -419,7 +636,7 @@ export default function Dashboard() {
                             ? 'text-emerald-600 dark:text-emerald-400' 
                             : userNetBalance < -0.005 
                               ? 'text-rose-600 dark:text-rose-400' 
-                              : 'text-zinc-505'
+                              : 'text-zinc-500'
                         }`}>
                           {userNetBalance > 0.005 
                             ? `+RM ${userNetBalance.toFixed(2)}` 

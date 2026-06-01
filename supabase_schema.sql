@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   trip_id UUID REFERENCES trips(id) ON DELETE SET NULL,
   split_type TEXT NOT NULL DEFAULT 'equal', -- Added split_type
   receipt_url TEXT,
+  items JSONB DEFAULT '[]'::jsonb, -- Added for itemized splits details
   category TEXT NOT NULL DEFAULT 'general', -- Retained for visual categories
   date DATE NOT NULL DEFAULT CURRENT_DATE, -- Retained for timeline logs
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -263,3 +264,66 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==========================================
+-- 5. MIGRATION: ADD PAYMENT COLUMNS TO USERS
+-- ==========================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS duitnow_type TEXT DEFAULT 'phone';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS duitnow_id TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS tng_phone TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS mae_account TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS paypal_email TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS venmo_handle TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS default_currency TEXT DEFAULT 'RM';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS qr_code_url TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS qr_code_label TEXT DEFAULT 'DuitNow';
+
+-- ==========================================
+-- 6. MIGRATION: ADD GROUP INVITATION SUPPORT
+-- ==========================================
+ALTER TABLE public.group_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'accepted';
+
+-- Add UPDATE policy to allow invited users to accept invitations
+CREATE POLICY "Allow users to update their own membership status" ON public.group_members
+  FOR UPDATE USING (user_id = auth.uid());
+
+-- ==========================================
+-- 7. MIGRATION: UPDATE RLS POLICIES & ENABLE REALTIME
+-- ==========================================
+
+-- Allow users to select their own membership row (fixes select visibility checks during delete)
+DROP POLICY IF EXISTS "Allow users to view their own membership" ON public.group_members;
+CREATE POLICY "Allow users to view their own membership" ON public.group_members
+  FOR SELECT USING (user_id = auth.uid());
+
+-- Ensure the delete policy exists and allows users to leave groups
+DROP POLICY IF EXISTS "Allow users to leave groups" ON public.group_members;
+CREATE POLICY "Allow users to leave groups" ON public.group_members
+  FOR DELETE USING (user_id = auth.uid());
+
+-- Allow group creators to remove members from their groups
+DROP POLICY IF EXISTS "Allow group creators to remove members" ON public.group_members;
+CREATE POLICY "Allow group creators to remove members" ON public.group_members
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.groups
+      WHERE groups.id = group_members.group_id AND groups.created_by = auth.uid()
+    )
+  );
+
+-- Enable Supabase Realtime for main tables
+ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.group_members;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.groups;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.settlements;
+
+-- ==========================================
+-- 8. MIGRATION: ALLOW MEMBERS TO UPDATE SETTLEMENTS
+-- ==========================================
+DROP POLICY IF EXISTS "Allow group members to update settlements" ON public.settlements;
+CREATE POLICY "Allow group members to update settlements" ON public.settlements
+  FOR UPDATE USING (
+    check_is_group_member(group_id, auth.uid())
+  );
+

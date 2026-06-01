@@ -21,6 +21,19 @@ const CATEGORY_LABELS: Record<string, string> = {
   others: 'General / Misc'
 };
 
+const SHORT_CATEGORY_LABELS: Record<string, string> = {
+  food: 'Food',
+  housing: 'Housing',
+  transport: 'Transport',
+  entertainment: 'Entertainment',
+  utilities: 'Bills/Utils',
+  lodging: 'Lodging',
+  accommodation: 'Lodging',
+  shopping: 'Shopping',
+  general: 'General',
+  others: 'Others'
+};
+
 const DONUT_COLORS: Record<string, string> = {
   food: '#f97316',        // orange-500
   housing: '#3b82f6',     // blue-500
@@ -39,7 +52,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="rounded-xl border border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-3 shadow-lg text-xs space-y-1">
+      <div className="rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-3 shadow-lg text-xs space-y-1">
         <div className="flex items-center gap-1.5 font-bold text-zinc-900 dark:text-white">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: data.color }} />
           <span>{data.name}</span>
@@ -90,6 +103,8 @@ export default function SpendingChart({ categoryTotals, totalSpending }: Spendin
     setActiveIndex(null);
   };
 
+  const activeSlice = activeIndex !== null ? data[activeIndex] : null;
+
   return (
     <div className="space-y-4">
       {/* Recharts Container */}
@@ -124,16 +139,31 @@ export default function SpendingChart({ categoryTotals, totalSpending }: Spendin
                 />
               ))}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
           </PieChart>
         </ResponsiveContainer>
 
         {/* Center Total Count Overlay */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-          <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Total</span>
-          <span className="text-sm font-black text-zinc-950 dark:text-white leading-tight">
-            RM {totalSpending.toFixed(0)}
-          </span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center p-2">
+          {activeSlice ? (
+            <div className="flex flex-col items-center justify-center -space-y-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-wider truncate max-w-[75px]" style={{ color: activeSlice.color }}>
+                {SHORT_CATEGORY_LABELS[activeSlice.key] || activeSlice.name}
+              </span>
+              <span className="text-xs font-black text-zinc-950 dark:text-white leading-tight">
+                RM {activeSlice.value.toFixed(2)}
+              </span>
+              <span className="text-[9px] font-extrabold text-emerald-500 dark:text-emerald-400">
+                {activeSlice.percentage}%
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Total</span>
+              <span className="text-sm font-black text-zinc-950 dark:text-white leading-none mt-0.5">
+                RM {totalSpending.toFixed(0)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

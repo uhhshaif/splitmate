@@ -6,7 +6,7 @@ import { simplifyDebts, Transaction } from '@/lib/debt';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
-import { ArrowRight, Coins, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, Coins, CheckCircle, Loader2, Bell } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import DuitNowDialog from './duitnow-dialog';
 
@@ -15,7 +15,7 @@ interface DebtVisualizerProps {
 }
 
 export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
-  const { groups, expenses, profiles, settleDebt } = useStore();
+  const { currentUser, groups, expenses, profiles, settleDebt } = useStore();
   const group = groups.find((g) => g.id === groupId);
   
   // DuitNow settlement states
@@ -26,7 +26,6 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
   if (!group) return null;
 
   // 1. Calculate net balance for each member in this group
-  // Net balance = (total paid by member) - (total member owes)
   const balances: Record<string, number> = {};
   group.members.forEach((mid) => {
     balances[mid] = 0;
@@ -35,11 +34,9 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
   const groupExpenses = expenses.filter((e) => e.group_id === groupId);
 
   groupExpenses.forEach((e) => {
-    // Add to payer's credit
     if (balances[e.paid_by_id] !== undefined) {
       balances[e.paid_by_id] += e.amount;
     }
-    // Deduct from each split recipient's debt
     e.splits.forEach((s) => {
       if (balances[s.profile_id] !== undefined) {
         balances[s.profile_id] -= s.amount;
@@ -59,11 +56,10 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
     if (!activeTx) return;
     try {
       await settleDebt(activeTx.from, activeTx.to, activeTx.amount, groupId);
-      const fromName = profiles[activeTx.from]?.display_name || 'Someone';
       const toName = profiles[activeTx.to]?.display_name || 'Someone';
-      setSuccessMsg(`Successfully recorded settlement: ${fromName} paid ${toName} RM ${activeTx.amount.toFixed(2)}`);
+      setSuccessMsg(`Payment recorded! Awaiting confirmation from ${toName}.`);
     } catch (err: any) {
-      console.error(err);
+      // re-throw so caller handles
       throw err;
     }
   };
@@ -79,7 +75,7 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
           We simplified balances to minimize the total number of payments.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
         {successMsg && (
           <Alert className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <CheckCircle className="h-4 w-4" />
@@ -105,40 +101,40 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
               if (!debtor || !creditor) return null;
 
               return (
-                <div key={idx} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
+                <div key={idx} className="flex items-center justify-between py-4 first:pt-0 last:pb-0 gap-2">
                   {/* Debtor Profile */}
-                  <div className="flex items-center gap-3 w-1/3">
-                    <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10 shrink-0">
                       <AvatarImage src={debtor.avatar_url} alt={debtor.display_name} />
                       <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
                         {debtor.display_name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="truncate">
+                    <div className="truncate min-w-0">
                       <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">{debtor.display_name}</p>
                       <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">owes</p>
                     </div>
                   </div>
 
                   {/* Arrow & Amount */}
-                  <div className="flex flex-col items-center justify-center px-2 w-1/3 text-center">
-                    <span className="text-sm font-extrabold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/5 px-3 py-1 rounded-full border border-zinc-200 dark:border-white/10 shadow-sm whitespace-nowrap">
+                  <div className="flex flex-col items-center justify-center px-1 text-center shrink-0">
+                    <span className="text-xs font-extrabold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/5 px-2.5 py-0.5 rounded-full border border-zinc-200 dark:border-white/10 shadow-sm whitespace-nowrap">
                       RM {tx.amount.toFixed(2)}
                     </span>
                     <div className="flex items-center gap-1 mt-1 text-zinc-400 dark:text-zinc-500">
-                      <div className="h-px w-8 bg-zinc-200 dark:bg-zinc-800" />
-                      <ArrowRight className="h-3.5 w-3.5" />
-                      <div className="h-px w-8 bg-zinc-200 dark:bg-zinc-800" />
+                      <div className="h-px w-5 bg-zinc-200 dark:bg-zinc-800" />
+                      <ArrowRight className="h-3 w-3" />
+                      <div className="h-px w-5 bg-zinc-200 dark:bg-zinc-800" />
                     </div>
                   </div>
 
                   {/* Creditor Profile */}
-                  <div className="flex items-center justify-end gap-3 w-1/3 text-right">
-                    <div className="truncate">
+                  <div className="flex items-center justify-end gap-2.5 min-w-0 flex-1 text-right">
+                    <div className="truncate min-w-0">
                       <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">{creditor.display_name}</p>
                       <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">gets paid</p>
                     </div>
-                    <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10">
+                    <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10 shrink-0">
                       <AvatarImage src={creditor.avatar_url} alt={creditor.display_name} />
                       <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-500 dark:text-zinc-300">
                         {creditor.display_name.charAt(0).toUpperCase()}
@@ -147,12 +143,44 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
                   </div>
 
                   {/* Settle Action Button */}
-                  <div className="pl-4">
+                  <div className="pl-2 flex items-center justify-end gap-1.5 shrink-0">
+                    {currentUser?.id === tx.to && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const debtorName = debtor.display_name.split(' ')[0];
+                          let paymentDetails = '';
+                          if (currentUser.duitnow_id) {
+                            paymentDetails += `\n- DuitNow (${currentUser.duitnow_type || 'phone'}): ${currentUser.duitnow_id}`;
+                          }
+                          if (currentUser.tng_phone) {
+                            paymentDetails += `\n- Touch 'n Go eWallet: ${currentUser.tng_phone}`;
+                          }
+                          if (currentUser.mae_account) {
+                            paymentDetails += `\n- MAE (Maybank): ${currentUser.mae_account}`;
+                          }
+                          if (currentUser.paypal_email) {
+                            paymentDetails += `\n- PayPal: ${currentUser.paypal_email}`;
+                          }
+
+                          const text = `Hey ${debtorName}! Just a friendly reminder to settle RM ${tx.amount.toFixed(2)} for our shared expenses in "${group.name}" on Splitmate.${paymentDetails ? ` You can transfer to me via:${paymentDetails}` : ''}\nThanks! 🙏`;
+                          
+                          navigator.clipboard.writeText(text);
+                          setSuccessMsg(`Friendly reminder message for ${debtor.display_name} copied to clipboard!`);
+                          setTimeout(() => setSuccessMsg(null), 4500);
+                        }}
+                        title="Copy payment reminder"
+                        className="text-xs font-semibold hover:bg-amber-500/10 hover:text-amber-600 text-zinc-400 h-8 w-8 p-0 rounded-lg shrink-0"
+                      >
+                        <Bell className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleSettleClick(tx)}
-                      className="text-xs font-semibold transition hover:bg-teal-600 dark:hover:bg-teal-700 hover:text-white border-teal-500/20"
+                      className="text-xs font-semibold transition hover:bg-teal-600 dark:hover:bg-teal-700 hover:text-white border-teal-500/20 shrink-0"
                     >
                       Settle
                     </Button>
@@ -164,21 +192,18 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
         )}
 
         {/* DuitNow Settle Modal */}
-        {duitNowOpen && activeTx && (
-          <DuitNowDialog
-            isOpen={duitNowOpen}
-            onClose={() => {
-              setDuitNowOpen(false);
-              setActiveTx(null);
-            }}
-            onConfirm={handleConfirmSettle}
-            fromId={activeTx.from}
-            toId={activeTx.to}
-            amount={activeTx.amount}
-          />
-        )}
+        <DuitNowDialog
+          isOpen={duitNowOpen && !!activeTx}
+          onClose={() => {
+            setDuitNowOpen(false);
+            setActiveTx(null);
+          }}
+          onConfirm={handleConfirmSettle}
+          fromId={activeTx?.from || ''}
+          toId={activeTx?.to || ''}
+          amount={activeTx?.amount || 0}
+        />
       </CardContent>
     </Card>
   );
 }
-

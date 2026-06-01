@@ -17,6 +17,8 @@ export interface Profile {
   paypal_email?: string;
   venmo_handle?: string;
   default_currency?: string;
+  qr_code_url?: string;
+  qr_code_label?: string;
 }
 
 export interface Group {
@@ -33,6 +35,12 @@ export interface ExpenseSplit {
   amount: number;
 }
 
+export interface ExpenseItem {
+  name: string;
+  amount: number;
+  members: string[]; // profile IDs
+}
+
 export interface Expense {
   id: string;
   group_id: string;
@@ -46,6 +54,8 @@ export interface Expense {
   created_by: string;
   created_at: string;
   splits: ExpenseSplit[];
+  items?: ExpenseItem[];
+  splitType?: 'equal' | 'exact' | 'percent' | 'shares' | 'itemized';
 }
 
 export interface ItineraryItem {
@@ -68,15 +78,41 @@ export interface Trip {
   itinerary?: ItineraryItem[];
 }
 
+export interface GroupInvitation {
+  id: string;
+  group_id: string;
+  group_name: string;
+  group_description: string;
+  invited_by_name: string;
+}
+
+export interface Settlement {
+  id: string;
+  group_id: string;
+  from_user: string;
+  to_user: string;
+  amount: number;
+  settled: boolean;
+  created_at: string;
+}
+
 interface SplitmateState {
   currentUser: Profile | null;
   profiles: Record<string, Profile>;
   groups: Group[];
   expenses: Expense[];
   trips: Trip[];
+  invitations: GroupInvitation[];
+  settlements: Settlement[];
+  mockInvitations: { id: string; group_id: string; user_id: string }[];
   isLoading: boolean;
   error: string | null;
   exchangeRates: Record<string, number>;
+
+  acceptInvitation: (groupId: string) => Promise<void>;
+  declineInvitation: (groupId: string) => Promise<void>;
+  confirmSettlement: (settlementId: string) => Promise<void>;
+  declineSettlement: (settlementId: string) => Promise<void>;
 
   // Auth actions
   signInMock: (email: string, displayName: string) => void;
@@ -95,7 +131,9 @@ interface SplitmateState {
     category: string,
     splits: ExpenseSplit[],
     tripId?: string,
-    receiptUrl?: string
+    receiptUrl?: string,
+    items?: ExpenseItem[],
+    splitType?: 'equal' | 'exact' | 'percent' | 'shares' | 'itemized'
   ) => Promise<string | null>;
   deleteExpense: (id: string) => Promise<void>;
   createTrip: (groupId: string | undefined, name: string, description: string, startDate: string, endDate: string, budget: number) => Promise<string | null>;
@@ -113,6 +151,8 @@ interface SplitmateState {
     paypal_email?: string;
     venmo_handle?: string;
     default_currency?: string;
+    qr_code_url?: string;
+    qr_code_label?: string;
   }) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
   deleteGroup: (groupId: string) => Promise<void>;
@@ -124,8 +164,13 @@ interface SplitmateState {
     date: string,
     paidById: string,
     category: string,
-    splits: ExpenseSplit[]
+    splits: ExpenseSplit[],
+    receiptUrl?: string,
+    items?: ExpenseItem[],
+    splitType?: 'equal' | 'exact' | 'percent' | 'shares' | 'itemized'
   ) => Promise<void>;
+  updateGroup: (groupId: string, name: string, description: string) => Promise<void>;
+  removeMemberFromGroup: (groupId: string, memberId: string) => Promise<void>;
 }
 
 // Pre-populate premium mock data
@@ -322,11 +367,14 @@ export const useStore = create<SplitmateState>()(
       groups: mockGroups,
       expenses: mockExpenses,
       trips: mockTrips,
+      invitations: [],
+      settlements: [],
+      mockInvitations: [],
       isLoading: true,
       error: null,
       exchangeRates: { RM: 1, MYR: 1, USD: 0.23, EUR: 0.21, SGD: 0.31 },
 
-  signInMock: (email: string, displayName: string) => {
+   signInMock: (email: string, displayName: string) => {
     const matchedProfile = Object.values(get().profiles).find(p => p.email.toLowerCase() === email.toLowerCase());
     const user: Profile = matchedProfile || {
       id: `u-${Date.now()}`,
@@ -337,15 +385,8 @@ export const useStore = create<SplitmateState>()(
 
     const newProfiles = { ...get().profiles, [user.id]: user };
     
-    // Add user as member to all existing mock groups in local storage so they see them
-    const updatedGroups = get().groups.map(group => {
-      if (!group.members.includes(user.id)) {
-        return { ...group, members: [...group.members, user.id] };
-      }
-      return group;
-    });
-
-    set({ currentUser: user, profiles: newProfiles, groups: updatedGroups });
+    set({ currentUser: user, profiles: newProfiles });
+    get().initialize(); // Recalculate invitations for this signed-in user
   },
 
   signOutUser: async () => {
@@ -381,19 +422,74 @@ export const useStore = create<SplitmateState>()(
   initialize: async () => {
     set({ isLoading: true, error: null });
     try {
+      // Auto-cleanup other Supabase projects' cookies on localhost to prevent HTTP 431
+      if (typeof window !== 'undefined') {
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+          const projectRefMatch = supabaseUrl.match(/https:\/\/([^.]+)\.supabase/);
+          const currentProjectRef = projectRefMatch ? projectRefMatch[1] : '';
+          
+          if (document.cookie) {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              const eqIdx = cookie.indexOf('=');
+              const name = eqIdx > -1 ? cookie.substring(0, eqIdx) : cookie;
+              
+              if (name.startsWith('sb-') && currentProjectRef && !name.includes(currentProjectRef)) {
+                console.log('Cleaning up foreign Supabase cookie to prevent 431 header size error:', name);
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;`;
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=127.0.0.1;`;
+              }
+            }
+          }
+        } catch (cookieErr) {
+          console.warn('Failed to auto-clean Supabase cookies:', cookieErr);
+        }
+      }
+
       await get().fetchExchangeRates();
       if (isMockMode) {
-        // Hydrated from persist storage, ensure default values are set if store is uninitialized
-        if (!get().currentUser) {
+        // Hydrated from persist storage, ensure default values are set if store is empty
+        const currentProfiles = get().profiles || {};
+        if (Object.keys(currentProfiles).length === 0) {
           set({
-            currentUser: mockProfiles['u1'],
             profiles: mockProfiles,
             groups: mockGroups,
             expenses: mockExpenses,
             trips: mockTrips,
           });
         }
-        set({ isLoading: false });
+        if (!get().currentUser) {
+          // If no current user, default to Alex (u1)
+          const latestProfiles = get().profiles || mockProfiles;
+          set({ currentUser: latestProfiles['u1'] || mockProfiles['u1'] });
+        }
+
+        // Resolve mock invitations for UI
+        const currentUser = get().currentUser;
+        const invitations: GroupInvitation[] = [];
+        if (currentUser) {
+          const userMockInvites = get().mockInvitations || [];
+          userMockInvites.forEach(inv => {
+            if (inv.user_id === currentUser.id) {
+              const group = get().groups.find(g => g.id === inv.group_id);
+              if (group) {
+                const creatorProfile = get().profiles[group.created_by];
+                invitations.push({
+                  id: inv.id,
+                  group_id: inv.group_id,
+                  group_name: group.name,
+                  group_description: group.description || '',
+                  invited_by_name: creatorProfile?.display_name || 'Someone'
+                });
+              }
+            }
+          });
+        }
+
+        set({ invitations, isLoading: false });
       } else {
         // Load Supabase state
         const { data: { session } } = await supabase.auth.getSession();
@@ -426,26 +522,43 @@ export const useStore = create<SplitmateState>()(
             display_name: dbUser.name, // Map database name to frontend display_name
             name: dbUser.name,
             avatar_url: dbUser.avatar_url || '',
-            phone: metadata.phone || '',
-            duitnow_type: metadata.duitnow_type || '',
-            duitnow_id: metadata.duitnow_id || '',
-            tng_phone: metadata.tng_phone || '',
-            mae_account: metadata.mae_account || '',
-            paypal_email: metadata.paypal_email || '',
-            venmo_handle: metadata.venmo_handle || '',
-            default_currency: metadata.default_currency || 'RM',
+            phone: dbUser.phone || metadata.phone || '',
+            duitnow_type: dbUser.duitnow_type || metadata.duitnow_type || 'phone',
+            duitnow_id: dbUser.duitnow_id || metadata.duitnow_id || '',
+            tng_phone: dbUser.tng_phone || metadata.tng_phone || '',
+            mae_account: dbUser.mae_account || metadata.mae_account || '',
+            paypal_email: dbUser.paypal_email || metadata.paypal_email || '',
+            venmo_handle: dbUser.venmo_handle || metadata.venmo_handle || '',
+            default_currency: dbUser.default_currency || metadata.default_currency || 'RM',
+            qr_code_url: dbUser.qr_code_url || '',
+            qr_code_label: dbUser.qr_code_label || metadata.qr_code_label || 'DuitNow',
           };
 
           // Fetch all profiles from users table
-          const { data: dbProfiles } = await supabase.from('users').select('*');
-          const profileMap: Record<string, Profile> = {};
+          const { data: dbProfiles, error: dbProfilesErr } = await supabase.from('users').select('*');
+          if (dbProfilesErr) {
+            console.error('Supabase DB: Failed to fetch all user profiles. If you enabled Row Level Security (RLS), please ensure you added a SELECT policy for public users. Error details:', dbProfilesErr.message);
+          }
+          
+          // Merge database profiles with existing ones to avoid wiping them out
+          const profileMap: Record<string, Profile> = { ...get().profiles };
           dbProfiles?.forEach(p => {
             profileMap[p.id] = {
               id: p.id,
               email: p.email,
               display_name: p.name,
               name: p.name,
-              avatar_url: p.avatar_url || ''
+              avatar_url: p.avatar_url || '',
+              phone: p.phone || '',
+              duitnow_type: p.duitnow_type || 'phone',
+              duitnow_id: p.duitnow_id || '',
+              tng_phone: p.tng_phone || '',
+              mae_account: p.mae_account || '',
+              paypal_email: p.paypal_email || '',
+              venmo_handle: p.venmo_handle || '',
+              default_currency: p.default_currency || 'RM',
+              qr_code_url: p.qr_code_url || '',
+              qr_code_label: p.qr_code_label || 'DuitNow'
             };
           });
 
@@ -454,11 +567,72 @@ export const useStore = create<SplitmateState>()(
           const groupsWithMembers: Group[] = [];
           if (dbGroups) {
             for (const g of dbGroups) {
-              const { data: members } = await supabase.from('group_members').select('user_id').eq('group_id', g.id);
-              groupsWithMembers.push({
-                ...g,
-                members: members?.map(m => m.user_id) || []
-              });
+              let { data: members, error: membersError } = await supabase
+                .from('group_members')
+                .select('user_id, status')
+                .eq('group_id', g.id);
+
+              if (membersError) {
+                // Fallback if 'status' column doesn't exist yet in database
+                const { data: retryMembers } = await supabase
+                  .from('group_members')
+                  .select('user_id')
+                  .eq('group_id', g.id);
+                
+                members = (retryMembers || []).map(m => ({ ...m, status: 'accepted' }));
+              }
+
+              const acceptedMembers = members?.filter(m => !m.status || m.status === 'accepted').map(m => m.user_id) || [];
+              const isAcceptedMember = acceptedMembers.includes(userId);
+              const isCreator = g.created_by === userId;
+
+              if (isAcceptedMember || isCreator) {
+                groupsWithMembers.push({
+                  ...g,
+                  members: acceptedMembers
+                });
+              }
+            }
+          }
+
+          // Fetch invitations
+          let dbInvitations: any[] = [];
+          try {
+            const { data, error: invError } = await supabase
+              .from('group_members')
+              .select(`
+                id,
+                group_id,
+                groups (
+                  name,
+                  description,
+                  created_by
+                )
+              `)
+              .eq('user_id', userId)
+              .eq('status', 'pending');
+
+            if (!invError && data) {
+              dbInvitations = data;
+            }
+          } catch (e) {
+            console.warn('Invitations select failed: status column might be missing from group_members table.', e);
+          }
+
+          const invitations: GroupInvitation[] = [];
+          if (dbInvitations) {
+            for (const inv of dbInvitations) {
+              const g = inv.groups as any;
+              if (g) {
+                const creatorProfile = profileMap[g.created_by];
+                invitations.push({
+                  id: inv.id,
+                  group_id: inv.group_id,
+                  group_name: g.name,
+                  group_description: g.description || '',
+                  invited_by_name: creatorProfile?.display_name || 'Someone'
+                });
+              }
             }
           }
 
@@ -478,12 +652,14 @@ export const useStore = create<SplitmateState>()(
                 paid_by_id: e.paid_by, // Map database paid_by to paid_by_id
                 category: e.category,
                 receipt_url: e.receipt_url,
+                items: e.items || [],
                 created_by: e.created_by,
                 created_at: e.created_at,
                 splits: splits?.map(s => ({
                   profile_id: s.user_id,
                   amount: parseFloat(s.amount_owed)
-                })) || []
+                })) || [],
+                splitType: e.split_type as any
               });
             }
           }
@@ -491,12 +667,25 @@ export const useStore = create<SplitmateState>()(
           // Fetch trips
           const { data: dbTrips } = await supabase.from('trips').select('*');
 
+          // Fetch settlements
+          const { data: dbSettlements } = await supabase.from('settlements').select('*');
+
           set({
             currentUser: profile,
             profiles: profileMap,
             groups: groupsWithMembers,
             expenses: expensesWithSplits,
             trips: dbTrips || [],
+            invitations,
+            settlements: dbSettlements?.map(s => ({
+              id: s.id,
+              group_id: s.group_id,
+              from_user: s.from_user,
+              to_user: s.to_user,
+              amount: parseFloat(s.amount),
+              settled: s.settled,
+              created_at: s.created_at
+            })) || [],
             isLoading: false
           });
         } else {
@@ -517,8 +706,8 @@ export const useStore = create<SplitmateState>()(
       const groupId = `g-${Date.now()}`;
       
       // Resolve member profiles. Create mock profiles for ones that don't exist
-      const resolvedMembers = [user.id];
       const newProfiles = { ...get().profiles };
+      const mockInvites = [...(get().mockInvitations || [])];
 
       for (const email of memberEmails) {
         if (!email.trim()) continue;
@@ -535,7 +724,14 @@ export const useStore = create<SplitmateState>()(
           };
           newProfiles[newId] = existing;
         }
-        resolvedMembers.push(existing.id);
+        
+        if (existing.id !== user.id) {
+          mockInvites.push({
+            id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            group_id: groupId,
+            user_id: existing.id
+          });
+        }
       }
 
       const newGroup: Group = {
@@ -544,15 +740,17 @@ export const useStore = create<SplitmateState>()(
         description,
         created_by: user.id,
         created_at: new Date().toISOString(),
-        members: Array.from(new Set(resolvedMembers))
+        members: [user.id] // Only the creator is an active member initially
       };
 
       const updatedGroups = [...get().groups, newGroup];
       
       set({
         groups: updatedGroups,
-        profiles: newProfiles
+        profiles: newProfiles,
+        mockInvitations: mockInvites
       });
+      await get().initialize(); // Recalculate invitations
       return groupId;
     } else {
       // Supabase Create Group logic
@@ -565,25 +763,40 @@ export const useStore = create<SplitmateState>()(
       if (groupErr || !newGroup) throw groupErr;
 
       // Add members
-      const resolvedIds = [user.id];
+      const creatorInsert = { group_id: newGroup.id, user_id: user.id, status: 'accepted' };
+      const otherInserts: any[] = [];
       
       for (const email of memberEmails) {
         if (!email.trim()) continue;
         // Search if email user profile exists in DB
         const { data: found } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).single();
         if (found) {
-          resolvedIds.push(found.id);
+          if (found.id !== user.id) {
+            otherInserts.push({ group_id: newGroup.id, user_id: found.id, status: 'pending' });
+          }
         } else {
-          const dummyId = `u-${Math.random().toString(36).substr(2, 9)}`;
-          await supabase.from('users').insert([{ id: dummyId, email: email.toLowerCase(), name: email.split('@')[0] }]);
-          resolvedIds.push(dummyId);
+          throw new Error(`User with email "${email}" is not registered on Splitmate. They must register first before they can be added to a group.`);
         }
       }
 
-      // Unique member IDs
-      const uniqueIds = Array.from(new Set(resolvedIds));
-      const memberInserts = uniqueIds.map(pid => ({ group_id: newGroup.id, user_id: pid }));
-      await supabase.from('group_members').insert(memberInserts);
+      // Unique member inserts
+      const allInserts = [creatorInsert, ...otherInserts];
+      const uniqueInserts = Array.from(new Map(allInserts.map(item => [item.user_id, item])).values());
+      
+      let { error: insertErr } = await supabase.from('group_members').insert(uniqueInserts);
+
+      if (insertErr && (
+        insertErr.message?.includes('column "status"') || 
+        insertErr.message?.includes('status') || 
+        insertErr.message?.includes('schema cache')
+      )) {
+        console.warn('Supabase DB: "status" column does not exist in group_members. Retrying insert without it...');
+        const uniqueInsertsFallback = uniqueInserts.map(({ status, ...rest }) => rest);
+        const retryResult = await supabase.from('group_members').insert(uniqueInsertsFallback);
+        insertErr = retryResult.error;
+      }
+
+      if (insertErr) throw insertErr;
 
       await get().initialize();
       return newGroup.id;
@@ -599,7 +812,9 @@ export const useStore = create<SplitmateState>()(
     category: string,
     splits: ExpenseSplit[],
     tripId?: string,
-    receiptUrl?: string
+    receiptUrl?: string,
+    items?: ExpenseItem[],
+    splitType?: 'equal' | 'exact' | 'percent' | 'shares' | 'itemized'
   ) => {
     const user = get().currentUser;
     if (!user) return null;
@@ -616,9 +831,11 @@ export const useStore = create<SplitmateState>()(
         paid_by_id: paidById,
         category,
         receipt_url: receiptUrl,
+        items,
         created_by: user.id,
         created_at: new Date().toISOString(),
-        splits
+        splits,
+        splitType: splitType || 'equal'
       };
 
       const updatedExpenses = [...get().expenses, newExpense];
@@ -627,12 +844,10 @@ export const useStore = create<SplitmateState>()(
     } else {
       // Supabase add expense via Next.js REST API
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch('/api/expenses/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
           },
           body: JSON.stringify({
             groupId,
@@ -646,18 +861,35 @@ export const useStore = create<SplitmateState>()(
               userId: s.profile_id,
               amountOwed: s.amount
             })),
-            splitType: 'equal',
+            splitType: splitType || 'equal',
             receiptUrl,
+            items,
             createdBy: user.id
           })
         });
 
         if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Failed to record expense via API route');
+          let errMsg = 'Failed to record expense via API route';
+          try {
+            const rawText = await response.text();
+            try {
+              const errData = JSON.parse(rawText);
+              errMsg = errData.error || errMsg;
+            } catch (_) {
+              errMsg = rawText || `HTTP error ${response.status}: ${response.statusText}`;
+            }
+          } catch (e: any) {
+            errMsg = `HTTP error ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errMsg);
         }
 
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch (_) {
+          throw new Error('Success response was not valid JSON');
+        }
         await get().initialize();
         return data.id;
       } catch (err: any) {
@@ -741,56 +973,158 @@ export const useStore = create<SplitmateState>()(
   },
 
   settleDebt: async (fromId: string, toId: string, amount: number, groupId: string) => {
-    const fromProfile = get().profiles[fromId];
-    const toProfile = get().profiles[toId];
-    const fromName = fromProfile?.display_name || 'Someone';
-    const toName = toProfile?.display_name || 'Someone';
-
     if (isMockMode) {
-      const splits = [{ profile_id: toId, amount }];
-      await get().addExpense(
-        groupId,
-        `Settlement: ${fromName} paid ${toName}`,
+      const newMockSettlement: Settlement = {
+        id: 'ms_' + Math.random().toString(36).substr(2, 9),
+        group_id: groupId,
+        from_user: fromId,
+        to_user: toId,
         amount,
-        new Date().toISOString().split('T')[0],
-        fromId,
-        'settlement',
-        splits
-      );
+        settled: false,
+        created_at: new Date().toISOString()
+      };
+      set({ settlements: [...(get().settlements || []), newMockSettlement] });
     } else {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch('/api/settlements/settle', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
           },
           body: JSON.stringify({
             groupId,
             fromUser: fromId,
             toUser: toId,
             amount,
-            settled: true
+            settled: false
           })
         });
 
         if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Failed to log settlement via API route');
+          let errMsg = 'Failed to log settlement';
+          try {
+            const rawText = await response.text();
+            try {
+              const errData = JSON.parse(rawText);
+              errMsg = errData.error || errMsg;
+            } catch (_) {
+              errMsg = rawText || `HTTP error ${response.status}: ${response.statusText}`;
+            }
+          } catch (e: any) {
+            errMsg = `HTTP error ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errMsg);
         }
 
-        // Add a visual expense for settlement mapping in the client feed
-        const splits = [{ profile_id: toId, amount }];
-        await get().addExpense(
-          groupId,
-          `Settlement: ${fromName} paid ${toName}`,
-          amount,
-          new Date().toISOString().split('T')[0],
-          fromId,
-          'settlement',
-          splits
-        );
+        await get().initialize();
+      } catch (err: any) {
+        console.error(err);
+        throw err;
+      }
+    }
+  },
+
+  confirmSettlement: async (settlementId: string) => {
+    if (isMockMode) {
+      const settlement = get().settlements.find(s => s.id === settlementId);
+      if (!settlement) return;
+
+      const fromProfile = get().profiles[settlement.from_user];
+      const toProfile = get().profiles[settlement.to_user];
+      const fromName = fromProfile?.display_name || 'Someone';
+      const toName = toProfile?.display_name || 'Someone';
+
+      // 1. Mark settlement as settled
+      const updated = get().settlements.map(s => 
+        s.id === settlementId ? { ...s, settled: true } : s
+      );
+
+      // 2. Add visual expense
+      const splits = [{ profile_id: settlement.to_user, amount: settlement.amount }];
+      await get().addExpense(
+        settlement.group_id,
+        `Settlement: ${fromName} paid ${toName}`,
+        settlement.amount,
+        new Date().toISOString().split('T')[0],
+        settlement.from_user,
+        'settlement',
+        splits
+      );
+
+      set({ settlements: updated });
+    } else {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const response = await fetch('/api/settlements/confirm', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
+          },
+          body: JSON.stringify({
+            settlementId,
+            action: 'confirm'
+          })
+        });
+
+        if (!response.ok) {
+          let errMsg = 'Failed to confirm settlement';
+          try {
+            const rawText = await response.text();
+            try {
+              const errData = JSON.parse(rawText);
+              errMsg = errData.error || errMsg;
+            } catch (_) {
+              errMsg = rawText || `HTTP error ${response.status}: ${response.statusText}`;
+            }
+          } catch (e: any) {
+            errMsg = `HTTP error ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errMsg);
+        }
+
+        await get().initialize();
+      } catch (err: any) {
+        console.error(err);
+        throw err;
+      }
+    }
+  },
+
+  declineSettlement: async (settlementId: string) => {
+    if (isMockMode) {
+      const updated = get().settlements.filter(s => s.id !== settlementId);
+      set({ settlements: updated });
+    } else {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const response = await fetch('/api/settlements/confirm', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
+          },
+          body: JSON.stringify({
+            settlementId,
+            action: 'reject'
+          })
+        });
+
+        if (!response.ok) {
+          let errMsg = 'Failed to decline settlement';
+          try {
+            const rawText = await response.text();
+            try {
+              const errData = JSON.parse(rawText);
+              errMsg = errData.error || errMsg;
+            } catch (_) {
+              errMsg = rawText || `HTTP error ${response.status}: ${response.statusText}`;
+            }
+          } catch (e: any) {
+            errMsg = `HTTP error ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errMsg);
+        }
 
         await get().initialize();
       } catch (err: any) {
@@ -812,6 +1146,8 @@ export const useStore = create<SplitmateState>()(
     paypal_email?: string;
     venmo_handle?: string;
     default_currency?: string;
+    qr_code_url?: string;
+    qr_code_label?: string;
   }) => {
     const user = get().currentUser;
     if (!user) return;
@@ -829,7 +1165,9 @@ export const useStore = create<SplitmateState>()(
         mae_account: profileData.mae_account,
         paypal_email: profileData.paypal_email,
         venmo_handle: profileData.venmo_handle,
-        default_currency: profileData.default_currency || 'RM'
+        default_currency: profileData.default_currency || 'RM',
+        qr_code_url: profileData.qr_code_url,
+        qr_code_label: profileData.qr_code_label || 'DuitNow'
       };
       
       const updatedProfiles = { ...get().profiles, [user.id]: updatedUser };
@@ -847,7 +1185,9 @@ export const useStore = create<SplitmateState>()(
           mae_account: profileData.mae_account,
           paypal_email: profileData.paypal_email,
           venmo_handle: profileData.venmo_handle,
-          default_currency: profileData.default_currency || 'RM'
+          default_currency: profileData.default_currency || 'RM',
+          qr_code_url: profileData.qr_code_url,
+          qr_code_label: profileData.qr_code_label || 'DuitNow'
         }
       };
 
@@ -859,10 +1199,20 @@ export const useStore = create<SplitmateState>()(
       const { error: authErr } = await supabase.auth.updateUser(updateData);
       if (authErr) throw authErr;
 
-      // Update users table in db (only updating columns that exist: name, email, avatar_url)
+      // Update users table in db
       const dbUpdate: any = {
         name: profileData.display_name,
-        avatar_url: profileData.avatar_url
+        avatar_url: profileData.avatar_url,
+        phone: profileData.phone,
+        duitnow_type: profileData.duitnow_type,
+        duitnow_id: profileData.duitnow_id,
+        tng_phone: profileData.tng_phone,
+        mae_account: profileData.mae_account,
+        paypal_email: profileData.paypal_email,
+        venmo_handle: profileData.venmo_handle,
+        default_currency: profileData.default_currency || 'RM',
+        qr_code_url: profileData.qr_code_url,
+        qr_code_label: profileData.qr_code_label || 'DuitNow'
       };
       
       const { error: dbErr } = await supabase
@@ -891,14 +1241,18 @@ export const useStore = create<SplitmateState>()(
       }).filter(group => group.members.length > 0);
 
       set({ groups: updatedGroups });
+      await get().initialize();
     } else {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('group_members')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('group_id', groupId)
         .eq('user_id', user.id);
       
       if (error) throw error;
+      if (count === 0) {
+        throw new Error('Failed to leave the group. You might not be a member, or database security policies blocked the operation.');
+      }
       await get().initialize();
     }
   },
@@ -947,19 +1301,31 @@ export const useStore = create<SplitmateState>()(
         newProfiles[newId] = existing;
       }
 
-      const updatedGroups = get().groups.map(group => {
-        if (group.id === groupId) {
-          if (!group.members.includes(existing.id)) {
-            return {
-              ...group,
-              members: [...group.members, existing.id]
-            };
-          }
-        }
-        return group;
-      });
+      // Check if already a member
+      const group = get().groups.find(g => g.id === groupId);
+      if (group?.members.includes(existing.id)) {
+        throw new Error(`User with email "${email}" is already a member of this group.`);
+      }
 
-      set({ groups: updatedGroups, profiles: newProfiles });
+      // Check if already invited
+      const alreadyInvited = (get().mockInvitations || []).some(
+        inv => inv.group_id === groupId && inv.user_id === existing!.id
+      );
+      if (alreadyInvited) {
+        throw new Error(`User with email "${email}" already has a pending invitation.`);
+      }
+
+      const newInvite = {
+        id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        group_id: groupId,
+        user_id: existing.id
+      };
+
+      set({
+        profiles: newProfiles,
+        mockInvitations: [...(get().mockInvitations || []), newInvite]
+      });
+      await get().initialize(); // Recalculate invitations
     } else {
       // Find by email in users table
       const { data: found } = await supabase
@@ -973,16 +1339,32 @@ export const useStore = create<SplitmateState>()(
       }
 
       // Add to group_members
-      const { error } = await supabase
+      let { error } = await supabase
         .from('group_members')
         .insert([{
           group_id: groupId,
-          user_id: found.id
+          user_id: found.id,
+          status: 'pending'
         }]);
+
+      if (error && (
+        error.message?.includes('column "status"') || 
+        error.message?.includes('status') || 
+        error.message?.includes('schema cache')
+      )) {
+        console.warn('Supabase DB: "status" column does not exist in group_members. Retrying insert without it...');
+        const retryResult = await supabase
+          .from('group_members')
+          .insert([{
+            group_id: groupId,
+            user_id: found.id
+          }]);
+        error = retryResult.error;
+      }
       
       if (error) {
         if (error.code === '23505') {
-          throw new Error(`User "${email}" is already a member of this group.`);
+          throw new Error(`User "${email}" is already a member of this group or has a pending invitation.`);
         }
         throw error;
       }
@@ -997,7 +1379,10 @@ export const useStore = create<SplitmateState>()(
     date: string,
     paidById: string,
     category: string,
-    splits: ExpenseSplit[]
+    splits: ExpenseSplit[],
+    receiptUrl?: string,
+    items?: ExpenseItem[],
+    splitType?: 'equal' | 'exact' | 'percent' | 'shares' | 'itemized'
   ) => {
     const user = get().currentUser;
     if (!user) return;
@@ -1012,24 +1397,48 @@ export const useStore = create<SplitmateState>()(
             date,
             paid_by_id: paidById,
             category,
-            splits
+            splits,
+            receipt_url: receiptUrl !== undefined ? receiptUrl : e.receipt_url,
+            items: items !== undefined ? items : e.items,
+            splitType: splitType !== undefined ? splitType : e.splitType
           };
         }
         return e;
       });
       set({ expenses: updatedExpenses });
     } else {
-      // 1. Update the expenses table
-      const { error: expError } = await supabase
+      // 1. Update the expenses table with fallback for missing items column
+      const updateData: any = {
+        title: description,
+        amount,
+        date,
+        paid_by: paidById,
+        category,
+        receipt_url: receiptUrl !== undefined ? receiptUrl : undefined,
+        split_type: splitType !== undefined ? splitType : undefined,
+      };
+
+      if (items !== undefined) {
+        updateData.items = items;
+      }
+
+      let { error: expError } = await supabase
         .from('expenses')
-        .update({
-          title: description,
-          amount,
-          date,
-          paid_by: paidById,
-          category
-        })
+        .update(updateData)
         .eq('id', expenseId);
+
+      if (expError && (
+        expError.message?.includes('column "items"') || 
+        expError.message?.includes('items')
+      )) {
+        console.warn('Supabase DB: "items" column does not exist. Retrying update without "items" column...');
+        delete updateData.items;
+        const retryResult = await supabase
+          .from('expenses')
+          .update(updateData)
+          .eq('id', expenseId);
+        expError = retryResult.error;
+      }
 
       if (expError) throw expError;
 
@@ -1056,6 +1465,104 @@ export const useStore = create<SplitmateState>()(
 
       await get().initialize();
     }
+  },
+
+  updateGroup: async (groupId: string, name: string, description: string) => {
+    if (isMockMode) {
+      const updatedGroups = get().groups.map(g => {
+        if (g.id === groupId) {
+          return { ...g, name, description };
+        }
+        return g;
+      });
+      set({ groups: updatedGroups });
+    } else {
+      const { error } = await supabase
+        .from('groups')
+        .update({ name, description })
+        .eq('id', groupId);
+      if (error) throw error;
+      await get().initialize();
+    }
+  },
+
+  removeMemberFromGroup: async (groupId: string, memberId: string) => {
+    if (isMockMode) {
+      const updatedGroups = get().groups.map(g => {
+        if (g.id === groupId) {
+          return {
+            ...g,
+            members: g.members.filter(m => m !== memberId)
+          };
+        }
+        return g;
+      });
+      set({ groups: updatedGroups });
+    } else {
+      const { error, count } = await supabase
+        .from('group_members')
+        .delete({ count: 'exact' })
+        .eq('group_id', groupId)
+        .eq('user_id', memberId);
+      if (error) throw error;
+      if (count === 0) {
+        throw new Error('Failed to remove the member. You might not have permission, or the member is not in the group.');
+      }
+      await get().initialize();
+    }
+  },
+
+  acceptInvitation: async (groupId: string) => {
+    const user = get().currentUser;
+    if (!user) return;
+
+    if (isMockMode) {
+      const updatedMockInvitations = (get().mockInvitations || []).filter(
+        inv => !(inv.group_id === groupId && inv.user_id === user.id)
+      );
+      const updatedGroups = get().groups.map(g => {
+        if (g.id === groupId) {
+          if (!g.members.includes(user.id)) {
+            return { ...g, members: [...g.members, user.id] };
+          }
+        }
+        return g;
+      });
+      set({ mockInvitations: updatedMockInvitations, groups: updatedGroups });
+      await get().initialize();
+    } else {
+      const { error } = await supabase
+        .from('group_members')
+        .update({ status: 'accepted' })
+        .eq('group_id', groupId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      await get().initialize();
+    }
+  },
+
+  declineInvitation: async (groupId: string) => {
+    const user = get().currentUser;
+    if (!user) return;
+
+    if (isMockMode) {
+      const updatedMockInvitations = (get().mockInvitations || []).filter(
+        inv => !(inv.group_id === groupId && inv.user_id === user.id)
+      );
+      set({ mockInvitations: updatedMockInvitations });
+      await get().initialize();
+    } else {
+      const { error, count } = await supabase
+        .from('group_members')
+        .delete({ count: 'exact' })
+        .eq('group_id', groupId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      if (count === 0) {
+        throw new Error('Failed to decline invitation. You might not have permission, or the invitation has already been actioned.');
+      }
+      await get().initialize();
+    }
   }
 }), {
   name: 'splitmate-storage',
@@ -1065,6 +1572,7 @@ export const useStore = create<SplitmateState>()(
     groups: state.groups,
     expenses: state.expenses,
     trips: state.trips,
+    mockInvitations: state.mockInvitations,
   }),
 }));
 
