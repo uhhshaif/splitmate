@@ -14,8 +14,8 @@ import ThemeToggle from '@/components/theme-toggle';
 export default function Login() {
   const router = useRouter();
   const { currentUser, signInMock, initialize } = useStore();
-  const [email, setEmail] = useState(isMockMode ? 'alex@splitmate.com' : '');
-  const [password, setPassword] = useState(isMockMode ? 'password123' : '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoadingSubmit, setIsLoadingSubmit] = useState(false);
 
@@ -60,9 +60,7 @@ export default function Login() {
     }
   };
 
-  const selectMockUser = (mockEmail: string) => {
-    setEmail(mockEmail);
-  };
+
 
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-background font-sans text-foreground">
@@ -179,33 +177,7 @@ export default function Login() {
             </Link>
           </div>
 
-          {/* Quick Select Mock Users (Only visible in Mock Mode) */}
-          {isMockMode && (
-            <div className="mt-6 border-t border-zinc-200 dark:border-white/5 pt-4">
-              <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 mb-2.5 text-center uppercase tracking-wider">Quick Mock Profiles (Offline Mode):</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { name: 'Alex Rivera', email: 'alex@splitmate.com' },
-                  { name: 'Jessica Chen', email: 'jessica@splitmate.com' },
-                  { name: 'Marcus Vance', email: 'marcus@splitmate.com' },
-                  { name: 'Sarah Jenkins', email: 'sarah@splitmate.com' },
-                ].map((user) => (
-                  <button
-                    key={user.email}
-                    type="button"
-                    onClick={() => selectMockUser(user.email)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-left text-xs font-semibold transition ${
-                      email === user.email
-                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-white font-bold'
-                        : 'border-zinc-200 dark:border-white/5 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {user.name.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+
           </div>
         </div>
       </div>
