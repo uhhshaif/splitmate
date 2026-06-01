@@ -13,10 +13,10 @@ Experience Splitmate live on Vercel:
 
 ### Demo Account for Reviewers
 Splitmate is configured with an offline **Sandbox Mock Mode** that activates automatically when database keys aren't present. To explore the app with pre-populated data (expenses, groups, and settlements), simply navigate to the deployment link, click **Sign In**, and use the following demo credentials:
-- **Email:** `alex@splitmate.com`
-- **Name:** `Alex Rivera` (or any mock name)
+- **Email:** `test@gmail.com`
+- **Password:** `Test12345`
 
-*(Note: Because it's running in Sandbox mode, you can actually type ANY email to create a fresh local session!)*
+*(Note: Because it's running in Sandbox mode, you can actually type ANY password, or you can use a different email to create a fresh blank local session!)*
 
 ---
 

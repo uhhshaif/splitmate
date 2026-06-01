@@ -177,7 +177,7 @@ interface SplitmateState {
 const mockProfiles: Record<string, Profile> = {
   'u1': { 
     id: 'u1', 
-    email: 'alex@splitmate.com', 
+    email: 'test@gmail.com', 
     display_name: 'Alex Rivera', 
     avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face',
     phone: '+6012-3456789',
@@ -185,7 +185,7 @@ const mockProfiles: Record<string, Profile> = {
     duitnow_id: '+6012-3456789',
     tng_phone: '+6012-3456789',
     mae_account: '164012345678',
-    paypal_email: 'alex@splitmate.com',
+    paypal_email: 'test@gmail.com',
     venmo_handle: '@alex-rivera',
     default_currency: 'RM'
   },
