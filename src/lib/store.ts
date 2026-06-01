@@ -392,6 +392,9 @@ export const useStore = create<SplitmateState>()(
   signOutUser: async () => {
     if (isMockMode) {
       set({ currentUser: null });
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('splitmate-storage');
+      }
     } else {
       await supabase.auth.signOut();
       set({ currentUser: null });
