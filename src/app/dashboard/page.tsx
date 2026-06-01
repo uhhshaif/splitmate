@@ -172,7 +172,9 @@ export default function Dashboard() {
   });
 
   // 3. Format recent activities (last 5 expenses)
+  const userGroupIds = new Set(userGroups.map(g => g.id));
   const recentExpenses = [...expenses]
+    .filter(e => userGroupIds.has(e.group_id))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
