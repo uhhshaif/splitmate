@@ -461,11 +461,7 @@ export const useStore = create<SplitmateState>()(
             trips: mockTrips,
           });
         }
-        if (!get().currentUser) {
-          // If no current user, default to Alex (u1)
-          const latestProfiles = get().profiles || mockProfiles;
-          set({ currentUser: latestProfiles['u1'] || mockProfiles['u1'] });
-        }
+        // Removed auto-login so the app starts at the landing page for new visitors
 
         // Resolve mock invitations for UI
         const currentUser = get().currentUser;
