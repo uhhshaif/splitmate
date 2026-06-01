@@ -110,29 +110,29 @@ export default function DebtVisualizer({ groupId }: DebtVisualizerProps) {
                         {debtor.display_name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="truncate min-w-0">
-                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">{debtor.display_name}</p>
-                      <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">owes</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-tight break-words">{debtor.display_name}</p>
+                      <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-0.5">owes</p>
                     </div>
                   </div>
 
                   {/* Arrow & Amount */}
-                  <div className="flex flex-col items-center justify-center px-1 text-center shrink-0">
-                    <span className="text-xs font-extrabold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/5 px-2.5 py-0.5 rounded-full border border-zinc-200 dark:border-white/10 shadow-sm whitespace-nowrap">
+                  <div className="flex flex-col items-center justify-center px-0.5 sm:px-1 text-center shrink-0">
+                    <span className="text-xs font-extrabold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/5 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-white/10 shadow-sm whitespace-nowrap">
                       RM {tx.amount.toFixed(2)}
                     </span>
                     <div className="flex items-center gap-1 mt-1 text-zinc-400 dark:text-zinc-500">
-                      <div className="h-px w-5 bg-zinc-200 dark:bg-zinc-800" />
-                      <ArrowRight className="h-3 w-3" />
-                      <div className="h-px w-5 bg-zinc-200 dark:bg-zinc-800" />
+                      <div className="h-px w-3 sm:w-5 bg-zinc-200 dark:bg-zinc-800" />
+                      <ArrowRight className="h-3 w-3 shrink-0" />
+                      <div className="h-px w-3 sm:w-5 bg-zinc-200 dark:bg-zinc-800" />
                     </div>
                   </div>
 
                   {/* Creditor Profile */}
-                  <div className="flex items-center justify-end gap-2.5 min-w-0 flex-1 text-right">
-                    <div className="truncate min-w-0">
-                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">{creditor.display_name}</p>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">gets paid</p>
+                  <div className="flex items-center justify-end gap-2 min-w-0 flex-1 text-right">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-tight break-words">{creditor.display_name}</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">gets paid</p>
                     </div>
                     <Avatar className="h-9 w-9 ring-1 ring-zinc-200 dark:ring-white/10 shrink-0">
                       <AvatarImage src={creditor.avatar_url} alt={creditor.display_name} />
