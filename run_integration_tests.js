@@ -96,7 +96,7 @@ async function runTests() {
 
   // TEST 2: NLP Parsing Heuristics API Route
   try {
-    console.log('\nTest 2: Testing /api/parse-nlp (slang heuristics)...');
+    console.log('\nTest 2: Testing /api/expenses/ai-parse (slang heuristics)...');
     const payload = {
       text: 'I paid RM 60 for Groceries split equally with Jessica and Marcus',
       members: [
@@ -107,15 +107,15 @@ async function runTests() {
       currentUserId: 'u-alex',
       dateContext: '2026-06-01'
     };
-    const res = await post('/api/parse-nlp', payload);
+    const res = await post('/api/expenses/ai-parse', payload);
     
     if (
       res.statusCode === 200 &&
       res.body.success &&
       res.body.amount === 60 &&
-      res.body.description.toLowerCase().includes('groceries')
+      res.body.title.toLowerCase().includes('groceries')
     ) {
-      console.log('✅ Test 2 Passed! Parsed description:', res.body.description, '| Amount:', res.body.amount, '| Splits:', JSON.stringify(res.body.splits));
+      console.log('✅ Test 2 Passed! Parsed title:', res.body.title, '| Amount:', res.body.amount, '| Splits:', JSON.stringify(res.body.splits));
       passed++;
     } else {
       console.error('❌ Test 2 Failed! Response:', res);
