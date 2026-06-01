@@ -316,11 +316,7 @@ export default function SettingsPage() {
     setIsDeletingAccount(true);
     try {
       if (isMockMode) {
-        localStorage.removeItem('splitmate_user');
-        localStorage.removeItem('splitmate_profiles');
-        localStorage.removeItem('splitmate_groups');
-        localStorage.removeItem('splitmate_expenses');
-        localStorage.removeItem('splitmate_trips');
+        localStorage.removeItem('splitmate-storage');
         window.location.href = '/login';
       } else {
         const { error } = await supabase.from('users').delete().eq('id', currentUser.id);
@@ -338,11 +334,7 @@ export default function SettingsPage() {
   };
 
   const executeResetData = () => {
-    localStorage.removeItem('splitmate_user');
-    localStorage.removeItem('splitmate_profiles');
-    localStorage.removeItem('splitmate_groups');
-    localStorage.removeItem('splitmate_expenses');
-    localStorage.removeItem('splitmate_trips');
+    localStorage.removeItem('splitmate-storage');
     window.location.href = '/login';
   };
 
