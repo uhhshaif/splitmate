@@ -1087,18 +1087,26 @@ export const useStore = create<SplitmateState>()(
             try {
               const errData = JSON.parse(rawText);
               errMsg = errData.error || errMsg;
+              // If the settlement is not found on the server (ghost settlement), remove it locally
+              if (response.status === 404 || errMsg.includes('not found')) {
+                const updated = get().settlements.filter(s => s.id !== settlementId);
+                set({ settlements: updated });
+                return;
+              }
             } catch (_) {
               errMsg = rawText || `HTTP error ${response.status}: ${response.statusText}`;
             }
           } catch (e: any) {
             errMsg = `HTTP error ${response.status}: ${response.statusText}`;
           }
+          if (typeof window !== 'undefined') alert(`Error: ${errMsg}`);
           throw new Error(errMsg);
         }
 
         await get().initialize();
       } catch (err: any) {
         console.error(err);
+        if (typeof window !== 'undefined') alert(`Failed to confirm: ${err.message}`);
         throw err;
       }
     }
@@ -1130,18 +1138,26 @@ export const useStore = create<SplitmateState>()(
             try {
               const errData = JSON.parse(rawText);
               errMsg = errData.error || errMsg;
+              // If the settlement is not found on the server, just remove it locally
+              if (response.status === 404 || errMsg.includes('not found')) {
+                const updated = get().settlements.filter(s => s.id !== settlementId);
+                set({ settlements: updated });
+                return;
+              }
             } catch (_) {
               errMsg = rawText || `HTTP error ${response.status}: ${response.statusText}`;
             }
           } catch (e: any) {
             errMsg = `HTTP error ${response.status}: ${response.statusText}`;
           }
+          if (typeof window !== 'undefined') alert(`Error: ${errMsg}`);
           throw new Error(errMsg);
         }
 
         await get().initialize();
       } catch (err: any) {
         console.error(err);
+        if (typeof window !== 'undefined') alert(`Failed to decline: ${err.message}`);
         throw err;
       }
     }
