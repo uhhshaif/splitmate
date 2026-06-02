@@ -194,7 +194,7 @@ Example output format:
     if (geminiApiKey && !geminiApiKey.startsWith('your_')) {
       let response;
       try {
-        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -220,7 +220,7 @@ Example output format:
       // Fallback to second API key if the primary request failed or returned an error status (like 503)
       if ((!response || !response.ok) && geminiApiKey2 && !geminiApiKey2.startsWith('your_')) {
         console.warn('Primary Gemini key unavailable or returned error. Retrying with GEMINI_API_KEY_2...');
-        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey2}`, {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey2}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
