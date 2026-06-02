@@ -93,6 +93,7 @@ export interface Settlement {
   to_user: string;
   amount: number;
   settled: boolean;
+  expense_ids?: string[];
   created_at: string;
 }
 
@@ -104,6 +105,7 @@ interface SplitmateState {
   trips: Trip[];
   invitations: GroupInvitation[];
   settlements: Settlement[];
+  settledExpenseIds: string[];
   mockInvitations: { id: string; group_id: string; user_id: string }[];
   isLoading: boolean;
   error: string | null;
@@ -138,7 +140,7 @@ interface SplitmateState {
   deleteExpense: (id: string) => Promise<void>;
   createTrip: (groupId: string | undefined, name: string, description: string, startDate: string, endDate: string, budget: number) => Promise<string | null>;
   updateTripItinerary: (tripId: string, itinerary: ItineraryItem[]) => Promise<void>;
-  settleDebt: (fromId: string, toId: string, amount: number, groupId: string) => Promise<void>;
+  settleDebt: (fromId: string, toId: string, amount: number, groupId: string, expenseIds?: string[]) => Promise<void>;
   updateProfile: (profileData: {
     display_name: string;
     avatar_url: string;
@@ -369,6 +371,7 @@ export const useStore = create<SplitmateState>()(
       trips: mockTrips,
       invitations: [],
       settlements: [],
+      settledExpenseIds: [],
       mockInvitations: [],
       isLoading: true,
       error: null,
@@ -683,6 +686,7 @@ export const useStore = create<SplitmateState>()(
               to_user: s.to_user,
               amount: parseFloat(s.amount),
               settled: s.settled,
+              expense_ids: s.expense_ids || [],
               created_at: s.created_at
             })) || [],
             isLoading: false
@@ -971,18 +975,20 @@ export const useStore = create<SplitmateState>()(
     }
   },
 
-  settleDebt: async (fromId: string, toId: string, amount: number, groupId: string) => {
+  settleDebt: async (fromId: string, toId: string, amount: number, groupId: string, expenseIds?: string[]) => {
     if (isMockMode) {
       const newMockSettlement: Settlement = {
-        id: 'ms_' + Math.random().toString(36).substr(2, 9),
+        id: `mock-settlement-${Date.now()}`,
         group_id: groupId,
         from_user: fromId,
         to_user: toId,
         amount,
         settled: false,
+        expense_ids: expenseIds || [],
         created_at: new Date().toISOString()
       };
       set({ settlements: [...(get().settlements || []), newMockSettlement] });
+      return;
     } else {
       try {
         const response = await fetch('/api/settlements/settle', {
@@ -991,13 +997,14 @@ export const useStore = create<SplitmateState>()(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            groupId,
-            fromUser: fromId,
-            toUser: toId,
-            amount,
-            settled: false
-          })
-        });
+          fromId,
+          toId,
+          amount,
+          groupId,
+          settled: false,
+          expenseIds
+        })
+      });
 
         if (!response.ok) {
           let errMsg = 'Failed to log settlement';
@@ -1038,9 +1045,15 @@ export const useStore = create<SplitmateState>()(
         s.id === settlementId ? { ...s, settled: true } : s
       );
 
-      // 2. Add visual expense
+      // 1.5 Add any specific expense IDs to the settledExpenseIds list
+      const newSettledExpenseIds = [...get().settledExpenseIds];
+      if (settlement.expense_ids && settlement.expense_ids.length > 0) {
+        newSettledExpenseIds.push(...settlement.expense_ids);
+      }
+
+      // 2. Create the offsetting expense for the group
       const splits = [{ profile_id: settlement.to_user, amount: settlement.amount }];
-      await get().addExpense(
+      const newExpenseId = await get().addExpense(
         settlement.group_id,
         `Settlement: ${fromName} paid ${toName}`,
         settlement.amount,
@@ -1050,7 +1063,8 @@ export const useStore = create<SplitmateState>()(
         splits
       );
 
-      set({ settlements: updated });
+      set({ settlements: updated, settledExpenseIds: newSettledExpenseIds });
+      return;
     } else {
       try {
         const { data: { session } } = await supabase.auth.getSession();
