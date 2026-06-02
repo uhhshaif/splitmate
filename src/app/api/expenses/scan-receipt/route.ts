@@ -13,8 +13,9 @@ export async function POST(request: Request) {
     }
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
+    const geminiApiKey2 = process.env.GEMINI_API_KEY_2;
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const apiKey = geminiApiKey || anthropicApiKey;
+    const apiKey = geminiApiKey || anthropicApiKey || geminiApiKey2;
 
     // Fallback: If no API key, simulate scanning and return mock data
     if (!apiKey || apiKey.startsWith('your_')) {
@@ -151,10 +152,10 @@ Example format:
         console.warn('Gemini 2.5-flash fetch failed, attempting fallback...', err);
       }
 
-      // Fallback to gemini-3.5-flash if the primary request failed or returned an error status (like 503)
-      if (!response || !response.ok) {
-        console.warn('Gemini 2.5-flash unavailable or returned error. Retrying with gemini-3.5-flash...');
-        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`, {
+      // Fallback to second API key if the primary request failed or returned an error status (like 503)
+      if ((!response || !response.ok) && geminiApiKey2 && !geminiApiKey2.startsWith('your_')) {
+        console.warn('Primary Gemini key unavailable or returned error. Retrying with GEMINI_API_KEY_2...');
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey2}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
