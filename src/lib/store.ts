@@ -997,14 +997,14 @@ export const useStore = create<SplitmateState>()(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-          fromId,
-          toId,
-          amount,
-          groupId,
-          settled: false,
-          expenseIds
-        })
-      });
+            fromUser: fromId,
+            toUser: toId,
+            amount,
+            groupId,
+            settled: false,
+            expenseIds
+          })
+        });
 
         if (!response.ok) {
           let errMsg = 'Failed to log settlement';
@@ -1046,7 +1046,7 @@ export const useStore = create<SplitmateState>()(
       );
 
       // 1.5 Add any specific expense IDs to the settledExpenseIds list
-      const newSettledExpenseIds = [...get().settledExpenseIds];
+      const newSettledExpenseIds = [...(get().settledExpenseIds || [])];
       if (settlement.expense_ids && settlement.expense_ids.length > 0) {
         newSettledExpenseIds.push(...settlement.expense_ids);
       }
