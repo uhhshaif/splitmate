@@ -6,6 +6,13 @@ Splitmate operates in two synchronization modes: **Production Mode** (synced wit
 
 ---
 
+## 🎥 Demo Video
+
+Watch the full Splitmate walkthrough and AI Receipt Scanner in action:
+👉 **[Watch Demo Video on Google Drive](https://drive.google.com/drive/folders/1ifSJgxK8SOiGTEnVhk7TJeRLYyTHul4x?usp=drive_link)**
+
+---
+
 ## Live Deployment
 
 Experience Splitmate live on Vercel:
@@ -40,7 +47,7 @@ To explore the app with pre-populated data (groups, expenses, and settlements), 
 ### 1. AI-Powered Receipt Scanner
 * **File Upload & Laptop Webcam Capture**: Users can upload a receipt image or capture one directly using their laptop's built-in webcam.
 * **Line Item Extraction**: The backend API uses Google Gemini or Anthropic Claude LLM integration to extract the merchant name, total transaction amount, line items, service tax (SST), and service charge percentage.
-* **API Resilience**: If no API keys are provided or rate limits are reached, the system automatically falls back to a mock simulation mode that reads context from file names (e.g., matching "grab" with ride fares or "hotel" with lodging rates) so the feature remains fully functional during reviews.
+* **API Resilience & Dual-Key Fallback**: The system supports primary and secondary API keys (`GEMINI_API_KEY_2`) to automatically failover if rate limits or 503 High Demand errors occur. If all APIs fail, it falls back to a smart mock simulation mode.
 
 ### 2. NLP Quick-Parse Assistant
 * **Natural Language Inputs**: Paste a natural conversational sentence (e.g., *"I paid RM60 for groceries split equally with Marcus and Jessica"*) to log an expense instantly.
@@ -49,6 +56,7 @@ To explore the app with pre-populated data (groups, expenses, and settlements), 
 
 ### 3. Smart Debt Simplification Algorithm
 * **Minimizing Transactions**: Reduces transaction friction by calculating the absolute net balance of each user in a group.
+* **Robust Settlement Flow**: Paying back debts includes a strict "Pending" state where the recipient must "Confirm" or "Decline" the payment before balances are cleared. It includes robust local cache cleanup to prevent "ghost settlements" during database sync failures.
 * **Graph Optimization**: Employs a network flow graph algorithm that simplifies debts (e.g., if User A owes B RM10, and B owes C RM10, A is instructed to pay C RM10 directly), minimizing the total number of payment transfers.
 
 ### 4. Shared Member Payment QR Codes
@@ -57,6 +65,7 @@ To explore the app with pre-populated data (groups, expenses, and settlements), 
 
 ### 5. Premium UI/UX and Themes
 * **Interactive Spending Analytics**: Category-based pie charts showing spending breakdowns (Food, Housing, Transport, Utilities, Lodging, Entertainment, and General) with interactive hover overlays.
+* **Chronological Timestamps**: The expense timeline is perfectly sorted by exact insertion time (`created_at`) rather than manual dates, rendering precise, beautifully formatted timestamps (e.g., `Jun 2, 2026, 2:58 PM`) for absolute clarity.
 * **Modern Interface**: Responsive layout with smooth transitions, light/dark mode toggling, custom Radix UI Dialog modals, and custom empty onboarding states.
 
 ---
