@@ -1072,7 +1072,6 @@ export const useStore = create<SplitmateState>()(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
           },
           body: JSON.stringify({
             settlementId,
@@ -1123,7 +1122,6 @@ export const useStore = create<SplitmateState>()(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': session?.access_token ? `Bearer ${session.access_token}` : '',
           },
           body: JSON.stringify({
             settlementId,
