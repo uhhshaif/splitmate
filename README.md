@@ -46,7 +46,7 @@ To explore the app with pre-populated data (groups, expenses, and settlements), 
 
 ### 1. AI-Powered Receipt Scanner
 * **File Upload & Laptop Webcam Capture**: Users can upload a receipt image or capture one directly using their laptop's built-in webcam.
-* **Line Item Extraction**: The backend API uses Google Gemini or Anthropic Claude LLM integration to extract the merchant name, total transaction amount, line items, service tax (SST), and service charge percentage.
+* **Line Item Extraction**: The backend API uses Google Gemini LLM integration to extract the merchant name, total transaction amount, line items, service tax (SST), and service charge percentage.
 * **API Resilience & Dual-Key Fallback**: The system supports primary and secondary API keys (`GEMINI_API_KEY_2`) to automatically failover if rate limits or 503 High Demand errors occur. If all APIs fail, it falls back to a smart mock simulation mode.
 
 ### 2. NLP Quick-Parse Assistant
@@ -76,7 +76,7 @@ To explore the app with pre-populated data (groups, expenses, and settlements), 
 * **State Management**: Zustand (with localStorage persistence)
 * **Charts and Visuals**: Recharts (Pie/Ring Spending Breakdowns with center hover-state overlays), Lucide Icons
 * **Database and Authentication**: Supabase (PostgreSQL tables, Row-Level Security, Auth session management)
-* **AI Engine**: Google Gemini Developer API & Anthropic API (via Next.js edge-friendly fetch routing)
+* **AI Engine**: Google Gemini Developer API (via Next.js edge-friendly fetch routing)
 
 ---
 
@@ -92,7 +92,7 @@ To explore the app with pre-populated data (groups, expenses, and settlements), 
 
 ### 3. Graceful LLM Rate Limiting and Offline Compatibility
 * **The Challenge**: Third-party AI APIs are susceptible to quota limits, cold starts, and missing environment variables during evaluations.
-* **The Solution**: Formulated a cascading API structure. Edge fetch requests fall back from `gemini-2.5-flash` to `gemini-3.5-flash` on failure, and catch blocks execute a fallback system returning smart mock structures.
+* **The Solution**: Formulated a cascading API structure. Edge fetch requests fall back to a secondary backup API key (`GEMINI_API_KEY_2`) on failure, and catch blocks execute a robust fallback system returning smart mock structures if Google servers are completely down.
 
 ---
 
@@ -118,7 +118,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # (Optional) For Live AI Scan & NLP Parsing
 GEMINI_API_KEY=your_gemini_developer_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
+GEMINI_API_KEY_2=your_secondary_gemini_key_here
 ```
 *Note: If no env file or keys are provided, Splitmate will automatically run in Sandbox Mock Mode, providing mock data for receipt scanning, natural language parsing, and database transactions.*
 
