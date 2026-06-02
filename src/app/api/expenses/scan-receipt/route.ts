@@ -22,13 +22,14 @@ export async function POST(request: Request) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       const lowerName = (name || '').toLowerCase();
-      let title = 'KARAIKUDI RESTAURANT';
-      let amount = 22.58;
+      let title = 'Your Company Inc.';
+      let amount = 37.28;
       let category = 'food';
       let items = [
-        { name: 'Mutton Biliyat', amount: 16.50 },
-        { name: 'Vegetable Soup', amount: 3.80 },
-        { name: 'Sweet Beeda', amount: 1.00 }
+        { name: 'Grilled chicken sandwich', amount: 17.00 },
+        { name: 'Caesar salad', amount: 7.00 },
+        { name: 'Soft drinks', amount: 6.00 },
+        { name: 'Chocolate cake slice', amount: 5.50 }
       ];
       
       if (lowerName.includes('grab') || lowerName.includes('uber') || lowerName.includes('taxi') || lowerName.includes('cab')) {
@@ -263,14 +264,14 @@ Example format:
     console.warn('[Fallback] Gemini/Claude API failed or returned error. Running mock receipt scan fallback. Error details:', error.message);
     try {
       const lowerName = (name || '').toLowerCase();
-      let title = 'Le Mamak Bistro';
-      let amount = 68.40;
+      let title = 'Your Company Inc.';
+      let amount = 37.28;
       let category = 'food';
       let items = [
-        { name: 'Nasi Kandar', amount: 25.50 },
-        { name: 'Mee Goreng Mamak', amount: 18.00 },
-        { name: 'Roti Canai Special', amount: 14.90 },
-        { name: 'Teh Tarik Kaw', amount: 10.00 }
+        { name: 'Grilled chicken sandwich', amount: 17.00 },
+        { name: 'Caesar salad', amount: 7.00 },
+        { name: 'Soft drinks', amount: 6.00 },
+        { name: 'Chocolate cake slice', amount: 5.50 }
       ];
       
       if (lowerName.includes('grab') || lowerName.includes('uber') || lowerName.includes('taxi') || lowerName.includes('cab')) {
