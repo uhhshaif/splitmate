@@ -909,14 +909,14 @@ export default function GroupDetail() {
     });
   });
 
-  // Filter expenses based on search & category
+  // Filter and sort expenses based on search & category
   const filteredExpenses = groupExpenses
-    .filter((e) => {
-      const matchesSearch = e.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = categoryFilter === 'all' || e.category === categoryFilter;
+    .filter(exp => {
+      const matchesSearch = exp.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = categoryFilter === 'all' || exp.category === categoryFilter;
       return matchesSearch && matchesCategory;
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const getCategoryBadgeColor = (cat: string) => {
     switch (cat) {
@@ -1461,7 +1461,15 @@ export default function GroupDetail() {
                               <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 mt-1">
                                 <span>Paid by <span className="font-semibold text-zinc-700 dark:text-zinc-300">{payer?.display_name || 'Someone'}</span></span>
                                 <span>•</span>
-                                <span>{exp.date}</span>
+                                <span>
+                                  {new Date(exp.created_at).toLocaleString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    hour: 'numeric', 
+                                    minute: '2-digit' 
+                                  })}
+                                </span>
                                 {exp.category !== 'settlement' && (
                                   <>
                                     <span>•</span>
