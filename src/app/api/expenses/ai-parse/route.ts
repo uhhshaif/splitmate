@@ -241,10 +241,11 @@ Example output format:
         });
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (!response || !response.ok) {
+        const status = response ? response.status : 'Unknown';
+        const errorText = response ? await response.text() : 'Fetch failed completely';
         console.error('Gemini API Error Response:', errorText);
-        throw new Error(`Gemini API returned status ${response.status}: ${errorText}`);
+        throw new Error(`Gemini API returned status ${status}: ${errorText}`);
       }
 
       const data = await response.json();
