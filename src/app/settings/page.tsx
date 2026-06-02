@@ -439,30 +439,7 @@ export default function SettingsPage() {
                       )}
                     </div>
 
-                    {/* Upload button */}
-                    <Label
-                      htmlFor="avatar-file-upload"
-                      className="relative flex h-12 w-12 rounded-full items-center justify-center border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-emerald-500 dark:hover:border-emerald-500 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950 transition duration-200 shrink-0"
-                      title="Upload profile photo"
-                    >
-                      {isUploading ? (
-                        <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
-                      ) : (
-                        <Plus className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
-                      )}
-                      <input
-                        id="avatar-file-upload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleAvatarFileUpload}
-                        disabled={isUploading}
-                      />
-                    </Label>
 
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {isUploading ? 'Uploading...' : 'Click + to upload a photo'}
-                    </span>
                   </div>
 
                 </div>
